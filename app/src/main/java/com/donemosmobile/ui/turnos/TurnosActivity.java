@@ -4,15 +4,23 @@ import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.data.network.dto.CreateTurnoRequest;
+import com.donemosmobile.data.network.dto.PacienteDto;
+import com.donemosmobile.data.network.dto.TurnoDto;
+import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.data.turnos.TurnoRepository;
 import com.donemosmobile.ui.components.AppButton;
+import com.donemosmobile.ui.components.AppCard;
+import com.donemosmobile.ui.components.AppInput;
+import com.donemosmobile.ui.components.StateView;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -21,82 +29,385 @@ import com.google.android.material.datepicker.MaterialDatePicker;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
+/**
+ * Turnos del día. Lista los turnos de hoy desde la API, permite crear uno
+ * nuevo (paciente por DNI + fecha + hora + tipo opcional) y refrescar.
+ *
+ * <p>Mobile-first: una tarea por pantalla, botones grandes, sin tablas largas.
+ */
 public class TurnosActivity extends AppActivity {
 
   public static final String EXTRA_MODE = "mode";
   public static final String MODE_CREATE = "create";
 
+  private TurnoRepository turnoRepository;
+  private PacienteRepository pacienteRepository;
+
+  private StateView state;
+  private LinearLayout listContainer;
+  private LinearLayout createPanel;
+
+  // Formulario de alta.
+  private PacienteDto selectedPaciente;
+  private TextView pacienteValue;
   private TextView dateValue;
   private TextView timeValue;
+  private String selectedFecha;
+  private String selectedHora;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    turnoRepository = new TurnoRepository(this);
+    pacienteRepository = new PacienteRepository(this);
 
     boolean isCreate = MODE_CREATE.equals(getIntent().getStringExtra(EXTRA_MODE));
+    setContentView(buildView());
 
     if (isCreate) {
-      setContentView(buildCreateForm());
+      showCreatePanel();
     } else {
-      setContentView(buildAgendaPlaceholder());
+      loadTurnos();
     }
   }
 
-  // --- Nuevo turno: formulario con calendario ---
-
-  private LinearLayout buildCreateForm() {
+  private LinearLayout buildView() {
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
     root.setBackgroundColor(AppColors.BACKGROUND);
 
-    TextView title = new TextView(this);
-    title.setText("Nuevo turno");
-    AppTypography.headline1(title);
-    root.addView(title, fieldParams(
-        AppSpacing.dp(AppSpacing.LG, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources())));
+    View header = buildHeader();
+    root.addView(header, new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
 
-    // Paciente — depende del buscador, todavía sin modelo de datos
-    LinearLayout patientField = makeField("Paciente", "Seleccionar paciente");
-    patientField.setOnClickListener(v ->
-        Toast.makeText(this, "Requiere el buscador de pacientes (pendiente)", Toast.LENGTH_SHORT).show());
-    root.addView(patientField, fieldParams(
+    createPanel = buildCreateForm();
+    createPanel.setVisibility(View.GONE);
+    root.addView(createPanel);
+
+    state = new StateView(this);
+    root.addView(state);
+
+    listContainer = new LinearLayout(this);
+    listContainer.setOrientation(LinearLayout.VERTICAL);
+    listContainer.setPadding(
         AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources())));
-
-    // Fecha — calendario
-    dateValue = new TextView(this);
-    LinearLayout dateField = makeField("Fecha", "Elegir fecha", dateValue);
-    dateField.setOnClickListener(v -> showDatePicker());
-    root.addView(dateField, fieldParams(
+        AppSpacing.dp(AppSpacing.SM, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources())));
+        AppSpacing.dp(AppSpacing.XL, getResources()));
+    root.addView(listContainer);
 
-    // Hora — reloj
-    timeValue = new TextView(this);
-    LinearLayout timeField = makeField("Hora", "Elegir hora", timeValue);
-    timeField.setOnClickListener(v -> showTimePicker());
-    root.addView(timeField, fieldParams(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources())));
+    return root;
+  }
 
-    // Confirmar
-    LinearLayout buttonWrapper = new LinearLayout(this);
-    buttonWrapper.setOrientation(LinearLayout.VERTICAL);
-    buttonWrapper.setPadding(
+  private View buildHeader() {
+    LinearLayout header = new LinearLayout(this);
+    header.setOrientation(LinearLayout.HORIZONTAL);
+    header.setGravity(Gravity.CENTER_VERTICAL);
+    header.setPadding(
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.LG, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         0);
-    buttonWrapper.addView(new AppButton(this, "Confirmar turno", AppButton.Style.FILLED, v -> confirm()));
-    root.addView(buttonWrapper, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
+
+    LinearLayout titles = new LinearLayout(this);
+    titles.setOrientation(LinearLayout.VERTICAL);
+
+    TextView title = new TextView(this);
+    title.setText("Turnos de hoy");
+    AppTypography.headline1(title);
+    titles.addView(title);
+
+    TextView subtitle = new TextView(this);
+    subtitle.setText(hoyLegible());
+    AppTypography.caption(subtitle);
+    titles.addView(subtitle);
+
+    header.addView(titles, new LinearLayout.LayoutParams(
+        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+    TextView nuevo = new TextView(this);
+    nuevo.setText("+ Nuevo");
+    nuevo.setTextSize(15);
+    nuevo.setTextColor(AppColors.PRIMARY);
+    nuevo.setPadding(
+        AppSpacing.dp(AppSpacing.SM, getResources()),
+        AppSpacing.dp(AppSpacing.SM, getResources()),
+        AppSpacing.dp(AppSpacing.SM, getResources()),
+        AppSpacing.dp(AppSpacing.SM, getResources()));
+    nuevo.setClickable(true);
+    nuevo.setFocusable(true);
+    nuevo.setOnClickListener(v -> showCreatePanel());
+    header.addView(nuevo);
+
+    return header;
+  }
+
+  // --- Lista de turnos ---
+
+  private void loadTurnos() {
+    listContainer.removeAllViews();
+    createPanel.setVisibility(View.GONE);
+    state.showLoading();
+
+    turnoRepository.list(hoy(), null, new TurnoRepository.Callback<List<TurnoDto>>() {
+      @Override
+      public void onSuccess(List<TurnoDto> data) {
+        if (data == null || data.isEmpty()) {
+          state.showEmpty("No hay turnos para hoy");
+          return;
+        }
+        state.hide();
+        renderTurnos(data);
+      }
+
+      @Override
+      public void onError(ApiError.Type type, String message) {
+        state.showError(messageFor(type, message), TurnosActivity.this::loadTurnos);
+      }
+    });
+  }
+
+  private void renderTurnos(List<TurnoDto> turnos) {
+    listContainer.removeAllViews();
+    for (TurnoDto turno : turnos) {
+      listContainer.addView(buildTurnoCard(turno));
+    }
+  }
+
+  private AppCard buildTurnoCard(TurnoDto turno) {
+    LinearLayout content = new LinearLayout(this);
+    content.setOrientation(LinearLayout.HORIZONTAL);
+    content.setGravity(Gravity.CENTER_VERTICAL);
+
+    TextView hora = new TextView(this);
+    hora.setText(turno.horaCorta());
+    hora.setTextSize(20);
+    hora.setTextColor(AppColors.TEXT_PRIMARY);
+    hora.setTypeface(android.graphics.Typeface.create(
+        "sans-serif-medium", android.graphics.Typeface.NORMAL));
+    content.addView(hora, new LinearLayout.LayoutParams(
+        AppSpacing.dp(64, getResources()),
         ViewGroup.LayoutParams.WRAP_CONTENT));
 
+    LinearLayout details = new LinearLayout(this);
+    details.setOrientation(LinearLayout.VERTICAL);
+
+    TextView paciente = new TextView(this);
+    // El backend devuelve solo ids; mostramos el id hasta que la API exponga
+    // las relaciones. Se documenta como limitación mientras no haya embedding.
+    paciente.setText(turno.pacienteId != null
+        ? "Paciente #" + turno.pacienteId : "Paciente sin asignar");
+    AppTypography.bodyMedium(paciente);
+    details.addView(paciente);
+
+    TextView meta = new TextView(this);
+    meta.setText(metaLine(turno));
+    AppTypography.caption(meta);
+    details.addView(meta);
+
+    content.addView(details, new LinearLayout.LayoutParams(
+        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+    TextView estado = new TextView(this);
+    estado.setText(turno.estado != null ? turno.estado : "");
+    estado.setTextSize(12);
+    estado.setTextColor(estadoColor(turno.estado));
+    estado.setPadding(
+        AppSpacing.dp(AppSpacing.SM, getResources()),
+        AppSpacing.dp(AppSpacing.XS, getResources()),
+        AppSpacing.dp(AppSpacing.SM, getResources()),
+        AppSpacing.dp(AppSpacing.XS, getResources()));
+    content.addView(estado);
+
+    AppCard card = new AppCard(this, content);
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.bottomMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    card.setLayoutParams(params);
+    return card;
+  }
+
+  private String metaLine(TurnoDto turno) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("Sede #").append(turno.sedeId != null ? turno.sedeId : "—");
+    if (turno.tipoId != null) {
+      sb.append(" · Tipo #").append(turno.tipoId);
+    }
+    return sb.toString();
+  }
+
+  private int estadoColor(String estado) {
+    if (estado == null) {
+      return AppColors.TEXT_SECONDARY;
+    }
+    switch (estado) {
+      case "ATENDIDO":
+        return AppColors.SUCCESS;
+      case "CANCELADO":
+        return AppColors.ERROR;
+      case "PENDIENTE":
+        return AppColors.WARNING;
+      default:
+        return AppColors.TEXT_SECONDARY;
+    }
+  }
+
+  // --- Alta de turno ---
+
+  private void showCreatePanel() {
+    listContainer.removeAllViews();
+    state.hide();
+    createPanel.setVisibility(View.VISIBLE);
+  }
+
+  private LinearLayout buildCreateForm() {
+    LinearLayout root = new LinearLayout(this);
+    root.setOrientation(LinearLayout.VERTICAL);
+    root.setPadding(
+        AppSpacing.dp(AppSpacing.MD, getResources()),
+        AppSpacing.dp(AppSpacing.MD, getResources()),
+        AppSpacing.dp(AppSpacing.MD, getResources()),
+        0);
+
+    TextView title = new TextView(this);
+    title.setText("Nuevo turno");
+    AppTypography.headline2(title);
+    root.addView(title);
+
+    TextView help = new TextView(this);
+    help.setText("Buscá al paciente por DNI y elegí fecha y hora.");
+    AppTypography.caption(help);
+    LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    helpParams.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
+    helpParams.bottomMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(help, helpParams);
+
+    final AppInput dniInput = new AppInput(this, "DNI del paciente");
+    dniInput.getEditText().setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+    root.addView(dniInput);
+
+    AppButton buscar = new AppButton(this, "Buscar paciente", AppButton.Style.OUTLINED,
+        v -> buscarPaciente(dniInput.getText()));
+    LinearLayout.LayoutParams buscarParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(44, getResources()));
+    buscarParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(buscar, buscarParams);
+
+    pacienteValue = new TextView(this);
+    pacienteValue.setText("Sin paciente seleccionado");
+    pacienteValue.setTextSize(15);
+    pacienteValue.setTextColor(AppColors.TEXT_SECONDARY);
+    LinearLayout patientField = makeField("Paciente", pacienteValue);
+    LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(64, getResources()));
+    fieldParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(patientField, fieldParams);
+
+    dateValue = new TextView(this);
+    LinearLayout dateField = makeField("Fecha", dateValue);
+    dateField.setOnClickListener(v -> showDatePicker());
+    LinearLayout.LayoutParams dateParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(64, getResources()));
+    dateParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(dateField, dateParams);
+
+    timeValue = new TextView(this);
+    LinearLayout timeField = makeField("Hora", timeValue);
+    timeField.setOnClickListener(v -> showTimePicker());
+    LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(64, getResources()));
+    timeParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(timeField, timeParams);
+
+    AppButton confirmar = new AppButton(this, "Confirmar turno", AppButton.Style.FILLED,
+        v -> confirmar());
+    LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(48, getResources()));
+    confirmParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
+    root.addView(confirmar, confirmParams);
+
+    AppButton cancelar = new AppButton(this, "Volver a la lista", AppButton.Style.TEXT,
+        v -> loadTurnos());
+    root.addView(cancelar);
+
     return root;
+  }
+
+  private void buscarPaciente(String dni) {
+    if (dni.isEmpty()) {
+      Toast.makeText(this, "Ingresá el DNI", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    pacienteRepository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
+      @Override
+      public void onSuccess(PacienteDto data) {
+        selectedPaciente = data;
+        updatePacienteLabel(data.displayName());
+        Toast.makeText(TurnosActivity.this, "Paciente encontrado", Toast.LENGTH_SHORT).show();
+      }
+
+      @Override
+      public void onError(ApiError.Type type, String message) {
+        selectedPaciente = null;
+        updatePacienteLabel("Sin paciente seleccionado");
+        Toast.makeText(TurnosActivity.this, messageFor(type, message), Toast.LENGTH_SHORT).show();
+      }
+    });
+  }
+
+  private void updatePacienteLabel(String text) {
+    if (pacienteValue == null) {
+      return;
+    }
+    pacienteValue.setText(text);
+    pacienteValue.setTextColor(
+        text.startsWith("Sin ") ? AppColors.TEXT_SECONDARY : AppColors.TEXT_PRIMARY);
+  }
+
+  private void confirmar() {
+    if (selectedPaciente == null || selectedPaciente.id == null) {
+      Toast.makeText(this, "Seleccioná un paciente", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    if (selectedFecha == null || selectedHora == null) {
+      Toast.makeText(this, "Falta elegir fecha y hora", Toast.LENGTH_SHORT).show();
+      return;
+    }
+
+    CreateTurnoRequest body = new CreateTurnoRequest(
+        selectedPaciente.id, selectedFecha, selectedHora, null);
+    turnoRepository.create(body, new TurnoRepository.Callback<TurnoDto>() {
+      @Override
+      public void onSuccess(TurnoDto data) {
+        Toast.makeText(TurnosActivity.this, "Turno registrado", Toast.LENGTH_SHORT).show();
+        resetForm();
+        loadTurnos();
+      }
+
+      @Override
+      public void onError(ApiError.Type type, String message) {
+        Toast.makeText(TurnosActivity.this, messageFor(type, message), Toast.LENGTH_LONG).show();
+      }
+    });
+  }
+
+  private void resetForm() {
+    selectedPaciente = null;
+    selectedFecha = null;
+    selectedHora = null;
   }
 
   private void showDatePicker() {
@@ -104,11 +415,15 @@ public class TurnosActivity extends AppActivity {
         .setTitleText("Fecha del turno")
         .build();
     picker.addOnPositiveButtonClickListener(selection -> {
-      // Material devuelve millis en UTC: convertir con timezone UTC para no correr un día
+      // Material devuelve millis en UTC: convertir con timezone UTC para no correr un día.
       SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
       fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
       dateValue.setText(fmt.format(new Date(selection)));
       dateValue.setTextColor(AppColors.TEXT_PRIMARY);
+
+      SimpleDateFormat api = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+      api.setTimeZone(TimeZone.getTimeZone("UTC"));
+      selectedFecha = api.format(new Date(selection));
     });
     picker.show(getSupportFragmentManager(), "date_picker");
   }
@@ -118,7 +433,8 @@ public class TurnosActivity extends AppActivity {
     TimePickerDialog dialog = new TimePickerDialog(
         this,
         (view, hourOfDay, minute) -> {
-          timeValue.setText(String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute));
+          selectedHora = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
+          timeValue.setText(selectedHora);
           timeValue.setTextColor(AppColors.TEXT_PRIMARY);
         },
         now.get(Calendar.HOUR_OF_DAY),
@@ -127,27 +443,9 @@ public class TurnosActivity extends AppActivity {
     dialog.show();
   }
 
-  private void confirm() {
-    boolean hasDate = dateValue.getText() != null && !dateValue.getText().equals("Elegir fecha");
-    boolean hasTime = timeValue.getText() != null && !timeValue.getText().equals("Elegir hora");
+  // --- Helpers de UI ---
 
-    if (!hasDate || !hasTime) {
-      Toast.makeText(this, "Falta elegir fecha y hora", Toast.LENGTH_SHORT).show();
-      return;
-    }
-
-    // TODO: persistir cuando exista la capa de datos
-    Toast.makeText(this, "Turno registrado (sin persistencia aún)", Toast.LENGTH_SHORT).show();
-    finish();
-  }
-
-  // --- Campo tipo píldora: etiqueta + valor ---
-
-  private LinearLayout makeField(String label, String placeholder) {
-    return makeField(label, placeholder, null);
-  }
-
-  private LinearLayout makeField(String label, String placeholder, TextView valueView) {
+  private LinearLayout makeField(String label, TextView value) {
     LinearLayout field = new LinearLayout(this);
     field.setOrientation(LinearLayout.VERTICAL);
     field.setGravity(Gravity.CENTER_VERTICAL);
@@ -163,73 +461,46 @@ public class TurnosActivity extends AppActivity {
     AppTypography.caption(labelTv);
     field.addView(labelTv);
 
-    TextView value;
-    if (valueView != null) {
-      value = valueView;
-    } else {
-      value = new TextView(this);
-    }
-    value.setText(placeholder);
     value.setTextSize(15);
     value.setTextColor(AppColors.TEXT_SECONDARY);
-    value.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+    value.setTypeface(android.graphics.Typeface.create(
+        "sans-serif-medium", android.graphics.Typeface.NORMAL));
     field.addView(value);
-
-    field.setLayoutParams(new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        AppSpacing.dp(64, getResources())));
 
     return field;
   }
 
   private android.graphics.drawable.GradientDrawable rounded(int color, float radiusDp) {
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+    android.graphics.drawable.GradientDrawable drawable =
+        new android.graphics.drawable.GradientDrawable();
     drawable.setColor(color);
     drawable.setCornerRadius(AppSpacing.dp((int) radiusDp, getResources()));
     return drawable;
   }
 
-  private LinearLayout.LayoutParams fieldParams(int topMargin, int leftRight) {
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = topMargin;
-    params.leftMargin = leftRight;
-    params.rightMargin = leftRight;
-    return params;
+  /** Fecha de hoy en formato de API ({@code YYYY-MM-DD}). */
+  private String hoy() {
+    return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
   }
 
-  // --- Agenda: placeholder ---
+  private String hoyLegible() {
+    return new SimpleDateFormat("EEEE d 'de' MMMM", new Locale("es", "AR"))
+        .format(new Date());
+  }
 
-  private LinearLayout buildAgendaPlaceholder() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(AppColors.BACKGROUND);
-
-    TextView title = new TextView(this);
-    title.setText("Turnos");
-    AppTypography.headline1(title);
-    title.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.LG, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-    root.addView(title, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    TextView subtitle = new TextView(this);
-    subtitle.setText("Agenda de turnos (por construir)");
-    AppTypography.caption(subtitle);
-    subtitle.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-    root.addView(subtitle, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    return root;
+  private String messageFor(ApiError.Type type, String message) {
+    switch (type) {
+      case UNAUTHORIZED:
+        return "Sesión vencida, volvé a ingresar";
+      case NETWORK:
+        return "No se pudo conectar";
+      case SERVER:
+        return "Error del servidor, intentá de nuevo";
+      case CLIENT:
+        return message != null && !message.isEmpty()
+            ? message : "No se pudo registrar el turno";
+      default:
+        return message != null && !message.isEmpty() ? message : "Ocurrió un error";
+    }
   }
 }
