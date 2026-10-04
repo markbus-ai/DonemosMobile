@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.donemosmobile.ui.aptitud.AptitudActivity;
 import com.donemosmobile.ui.donaciones.DonacionesActivity;
+import com.donemosmobile.ui.pacientes.PacienteLookupActivity;
 import com.donemosmobile.ui.pacientes.PacientesActivity;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -57,6 +58,14 @@ public class HomeContent extends LinearLayout {
     searchPill.setBackground(rounded(AppColors.SURFACE, 28));
     searchPill.addView(search, new LayoutParams(
         0, AppSpacing.dp(44, getResources()), 1));
+
+    // La píldora abre el buscador por DNI: no buscar en el teclado todavía.
+    search.setFocusable(false);
+    search.setClickable(true);
+    search.setOnClickListener(v -> navigate(context, PacienteLookupActivity.class));
+    searchPill.setClickable(true);
+    searchPill.setFocusable(true);
+    searchPill.setOnClickListener(v -> navigate(context, PacienteLookupActivity.class));
 
     LinearLayout searchWrapper = new LinearLayout(context);
     searchWrapper.setPadding(

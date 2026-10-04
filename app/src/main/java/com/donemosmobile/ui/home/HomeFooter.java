@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.donemosmobile.ui.components.AppNavBar;
-import com.donemosmobile.ui.pacientes.PacientesActivity;
+import com.donemosmobile.ui.pacientes.PacienteLookupActivity;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.turnos.TurnosActivity;
 
@@ -14,7 +14,7 @@ public class HomeFooter extends AppNavBar {
     super(context, new String[]{"Inicio", "Pacientes", "Turnos", "Más"}, position -> {
       switch (position) {
         case 1:
-          navigate(context, PacientesActivity.class);
+          navigate(context, PacienteLookupActivity.class);
           break;
         case 2:
           navigate(context, TurnosActivity.class);
