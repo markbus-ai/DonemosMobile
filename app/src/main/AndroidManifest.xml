@@ -21,6 +21,7 @@
         </activity>
         <activity android:name=".ui.auth.LoginActivity" android:exported="false" />
         <activity android:name=".ui.pacientes.PacientesActivity" />
+        <activity android:name=".ui.pacientes.PacienteLookupActivity" />
         <activity android:name=".ui.turnos.TurnosActivity" />
         <activity android:name=".ui.donaciones.DonacionesActivity" />
         <activity android:name=".ui.aptitud.AptitudActivity" />
