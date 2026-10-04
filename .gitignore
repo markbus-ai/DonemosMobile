@@ -1,0 +1,29 @@
+# Gradle / Android build artifacts
+.gradle/
+build/
+*/build/
+local.properties
+.cxx/
+captures/
+.externalNativeBuild/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# IDE
+.idea/
+.project
+.settings/
+.classpath
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local AI runtime state
+.atl/
