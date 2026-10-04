@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
@@ -50,11 +51,13 @@ public class TurnoRepository {
    */
   public void list(@Nullable String fecha, @Nullable Long pacienteId,
       final Callback<List<TurnoDto>> callback) {
+    final String key = cacheKey(fecha, pacienteId);
     api.index(fecha, pacienteId).enqueue(new retrofit2.Callback<List<TurnoDto>>() {
       @Override
       public void onResponse(@NonNull Call<List<TurnoDto>> call,
           @NonNull Response<List<TurnoDto>> response) {
         if (response.isSuccessful() && response.body() != null) {
+          DataCache.getInstance().put(key, response.body());
           callback.onSuccess(response.body());
           return;
         }
@@ -66,6 +69,48 @@ public class TurnoRepository {
         callback.onError(ApiError.Type.NETWORK, t.getMessage());
       }
     });
+  }
+
+  /**
+   * Devuelve la ultima lista cacheada para ese filtro, o {@code null} si no hay
+   * nada. La usa la pantalla para pintar al instante mientras revalida.
+   */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  public List<TurnoDto> getCachedList(@Nullable String fecha, @Nullable Long pacienteId) {
+    Object value = DataCache.getInstance().get(cacheKey(fecha, pacienteId));
+    return value instanceof List ? (List<TurnoDto>) value : null;
+  }
+
+  /** {@code true} si el cache de esa lista sigue fresco (dentro del umbral). */
+  public boolean isCachedListFresh(@Nullable String fecha, @Nullable Long pacienteId) {
+    return DataCache.getInstance().isFresh(cacheKey(fecha, pacienteId));
+  }
+
+  /**
+   * Calienta el cache en segundo plano. Fire-and-forget: no expone callback
+   * porque nadie espera el resultado. Si ya hay datos frescos no vuelve a pedir.
+   */
+  public void prefetch(@Nullable String fecha, @Nullable Long pacienteId) {
+    if (isCachedListFresh(fecha, pacienteId)) {
+      return;
+    }
+    list(fecha, pacienteId, new Callback<List<TurnoDto>>() {
+      @Override
+      public void onSuccess(@Nullable List<TurnoDto> data) {
+        // El cache ya se actualizo dentro de list().
+      }
+
+      @Override
+      public void onError(@NonNull ApiError.Type type, @Nullable String message) {
+        // Prefetch best-effort: si falla, la pantalla lo reintenta al abrir.
+      }
+    });
+  }
+
+  private String cacheKey(@Nullable String fecha, @Nullable Long pacienteId) {
+    return "turnos:" + (fecha != null ? fecha : "all")
+        + ":" + (pacienteId != null ? pacienteId : "all");
   }
 
   /** Crea un turno. Un 409 trae el mensaje de negocio (capacidad, intervalo). */

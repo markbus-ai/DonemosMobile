@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
@@ -38,11 +39,13 @@ public class PacienteRepository {
 
   /** Busca un paciente por DNI. 404 responde {@link ApiError.Type#NOT_FOUND}. */
   public void findByDni(String dni, final Callback<PacienteDto> callback) {
+    final String key = cacheKey(dni);
     api.show(dni).enqueue(new retrofit2.Callback<PacienteDto>() {
       @Override
       public void onResponse(@NonNull Call<PacienteDto> call,
           @NonNull Response<PacienteDto> response) {
         if (response.isSuccessful() && response.body() != null) {
+          DataCache.getInstance().put(key, response.body());
           callback.onSuccess(response.body());
           return;
         }
@@ -54,6 +57,20 @@ public class PacienteRepository {
         callback.onError(ApiError.Type.NETWORK, t.getMessage());
       }
     });
+  }
+
+  /**
+   * Devuelve la ficha cacheada de ese DNI, o {@code null} si todavia no se
+   * busco en esta sesion. La pantalla la pinta al instante y revalida detras.
+   */
+  @Nullable
+  public PacienteDto getCachedByDni(String dni) {
+    Object value = DataCache.getInstance().get(cacheKey(dni));
+    return value instanceof PacienteDto ? (PacienteDto) value : null;
+  }
+
+  private String cacheKey(String dni) {
+    return "paciente:" + dni;
   }
 
   /** Da de alta un paciente nuevo. 422 responde {@link ApiError.Type#CLIENT}. */

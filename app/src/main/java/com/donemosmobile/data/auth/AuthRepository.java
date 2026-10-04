@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.AuthApi;
@@ -131,6 +132,8 @@ public class AuthRepository {
 
   public void clearSession() {
     tokenStore.clear();
+    // El cache es de la sesion: al cerrarla no dejamos datos del usuario anterior.
+    DataCache.getInstance().clear();
   }
 
   public boolean hasSession() {
