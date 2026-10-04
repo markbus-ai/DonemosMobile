@@ -105,8 +105,16 @@ public class PacienteLookupActivity extends AppActivity {
       return;
     }
 
+    // Cache-first: si ya se buscó este DNI en la sesión, mostramos la ficha al
+    // toque y revalidamos en 2do plano.
+    final PacienteDto cached = repository.getCachedByDni(dni);
     resultContainer.removeAllViews();
-    state.showLoading();
+    if (cached != null) {
+      state.hide();
+      showResult(cached);
+    } else {
+      state.showLoading();
+    }
 
     repository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
       @Override
@@ -118,7 +126,12 @@ public class PacienteLookupActivity extends AppActivity {
       @Override
       public void onError(ApiError.Type type, String message) {
         if (type == ApiError.Type.NOT_FOUND) {
+          resultContainer.removeAllViews();
           state.showEmpty("No existe un paciente con ese DNI");
+          return;
+        }
+        // Con cache ya en pantalla no pisamos el contenido con un error.
+        if (cached != null) {
           return;
         }
         state.showError(messageFor(type, message), PacienteLookupActivity.this::search);
@@ -127,6 +140,8 @@ public class PacienteLookupActivity extends AppActivity {
   }
 
   private void showResult(PacienteDto paciente) {
+    resultContainer.removeAllViews();
+
     LinearLayout content = new LinearLayout(this);
     content.setOrientation(LinearLayout.VERTICAL);
 

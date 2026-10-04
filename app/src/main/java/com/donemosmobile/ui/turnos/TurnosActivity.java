@@ -152,12 +152,23 @@ public class TurnosActivity extends AppActivity {
   private void loadTurnos() {
     listContainer.removeAllViews();
     createPanel.setVisibility(View.GONE);
-    state.showLoading();
+
+    // Cache-first (stale-while-revalidate): si ya hay datos, pintalos al toque
+    // y refresca en 2do plano sin mostrar el spinner.
+    final List<TurnoDto> cached = turnoRepository.getCachedList(hoy(), null);
+    final boolean hasCached = cached != null && !cached.isEmpty();
+    if (hasCached) {
+      state.hide();
+      renderTurnos(cached);
+    } else {
+      state.showLoading();
+    }
 
     turnoRepository.list(hoy(), null, new TurnoRepository.Callback<List<TurnoDto>>() {
       @Override
       public void onSuccess(List<TurnoDto> data) {
         if (data == null || data.isEmpty()) {
+          listContainer.removeAllViews();
           state.showEmpty("No hay turnos para hoy");
           return;
         }
@@ -167,6 +178,10 @@ public class TurnosActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        // Con cache ya en pantalla no pisamos el contenido con un error.
+        if (hasCached) {
+          return;
+        }
         state.showError(messageFor(type, message), TurnosActivity.this::loadTurnos);
       }
     });

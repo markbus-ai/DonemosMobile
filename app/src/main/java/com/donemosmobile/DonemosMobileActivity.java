@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import com.donemosmobile.data.auth.AuthRepository;
+import com.donemosmobile.data.cache.Prefetcher;
 import com.donemosmobile.data.network.dto.UserDto;
 import com.donemosmobile.ui.auth.LoginActivity;
 import com.donemosmobile.ui.home.Home;
@@ -23,6 +24,10 @@ public class DonemosMobileActivity extends AppActivity {
       goToLogin();
       return;
     }
+
+    // Con sesion, arranca el precalentado en 2do plano antes de mostrar la Home:
+    // asi las primeras pantallas levantan datos del cache al instante.
+    Prefetcher.warmUp(this);
 
     setContentView(new Home(this));
     validateSession();
