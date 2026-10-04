@@ -42,7 +42,7 @@ public class HomeContent extends LinearLayout {
 
     // Buscador — píldora gris estilo iOS
     EditText search = new EditText(context);
-    search.setHint("Buscar paciente por nombre o DNI");
+    search.setHint("Buscar paciente por DNI");
     search.setTextSize(15);
     search.setHintTextColor(AppColors.TEXT_SECONDARY);
     search.setTextColor(AppColors.TEXT_PRIMARY);
