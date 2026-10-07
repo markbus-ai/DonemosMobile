@@ -11,6 +11,7 @@ import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.CatalogoApi;
 import com.donemosmobile.data.network.dto.MotivoDto;
+import com.donemosmobile.data.network.dto.TipoDonacionDto;
 
 import java.util.List;
 
@@ -18,8 +19,9 @@ import retrofit2.Call;
 import retrofit2.Response;
 
 /**
- * Catalogos de referencia. Hoy solo los motivos de observacion/deferral
- * ({@code GET /api/motivos}); se cachean en memoria porque cambian poco.
+ * Catalogos de referencia: motivos de observacion/deferral
+ * ({@code GET /api/motivos}) y tipos de donacion ({@code GET
+ * /api/tipos-donacion}). Se cachean en memoria porque cambian poco.
  */
 public class CatalogoRepository {
 
@@ -29,6 +31,7 @@ public class CatalogoRepository {
   }
 
   private static final String MOTIVOS_KEY = "motivos";
+  private static final String TIPOS_DONACION_KEY = "tipos_donacion";
 
   private final CatalogoApi api;
   private final TokenStore tokenStore;
@@ -66,6 +69,35 @@ public class CatalogoRepository {
   public List<MotivoDto> getCachedMotivos() {
     Object value = DataCache.getInstance().get(MOTIVOS_KEY);
     return value instanceof List ? (List<MotivoDto>) value : null;
+  }
+
+  /** Lista los tipos de donacion y deja el resultado cacheado. */
+  public void listTiposDonacion(final Callback<List<TipoDonacionDto>> callback) {
+    api.tiposDonacion().enqueue(new retrofit2.Callback<List<TipoDonacionDto>>() {
+      @Override
+      public void onResponse(@NonNull Call<List<TipoDonacionDto>> call,
+          @NonNull Response<List<TipoDonacionDto>> response) {
+        if (response.isSuccessful() && response.body() != null) {
+          DataCache.getInstance().put(TIPOS_DONACION_KEY, response.body());
+          callback.onSuccess(response.body());
+          return;
+        }
+        handleError(response, callback);
+      }
+
+      @Override
+      public void onFailure(@NonNull Call<List<TipoDonacionDto>> call, @NonNull Throwable t) {
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+      }
+    });
+  }
+
+  /** Tipos de donacion cacheados, o {@code null} si todavia no se pidieron. */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  public List<TipoDonacionDto> getCachedTiposDonacion() {
+    Object value = DataCache.getInstance().get(TIPOS_DONACION_KEY);
+    return value instanceof List ? (List<TipoDonacionDto>) value : null;
   }
 
   private <T> void handleError(Response<?> response, Callback<T> callback) {
