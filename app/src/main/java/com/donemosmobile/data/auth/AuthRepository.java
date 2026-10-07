@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.donemosmobile.data.cache.DataCache;
+import com.donemosmobile.data.local.SessionStore;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.AuthApi;
@@ -43,12 +44,14 @@ public class AuthRepository {
 
   private final AuthApi api;
   private final TokenStore tokenStore;
+  private final SessionStore sessionStore;
   private final Gson gson = new Gson();
 
   public AuthRepository(Context context) {
     ApiClient client = ApiClient.get(context);
     this.api = client.auth();
     this.tokenStore = client.tokenStore();
+    this.sessionStore = SessionStore.getInstance(context);
   }
 
   /** Autentica y persiste el token. Devuelve el usuario en {@code onSuccess}. */
@@ -62,6 +65,7 @@ public class AuthRepository {
             if (response.isSuccessful() && body != null
                 && body.token != null && !body.token.isEmpty()) {
               tokenStore.saveToken(body.token);
+              sessionStore.save(body.user);
               callback.onSuccess(body.user);
               return;
             }
@@ -92,6 +96,8 @@ public class AuthRepository {
       @Override
       public void onResponse(@NonNull Call<UserDto> call, @NonNull Response<UserDto> response) {
         if (response.isSuccessful()) {
+          // Refresca los datos de presentación del usuario en cada validación.
+          sessionStore.save(response.body());
           callback.onSuccess(response.body());
           return;
         }
@@ -132,6 +138,7 @@ public class AuthRepository {
 
   public void clearSession() {
     tokenStore.clear();
+    sessionStore.clear();
     // El cache es de la sesion: al cerrarla no dejamos datos del usuario anterior.
     DataCache.getInstance().clear();
   }
