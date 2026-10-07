@@ -3,6 +3,7 @@ package com.donemosmobile.ui.pacientes;
 import android.os.Bundle;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.donemosmobile.AppActivity;
@@ -11,7 +12,9 @@ import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
+import com.donemosmobile.ui.components.SectionNavBar;
 import com.donemosmobile.ui.components.StateView;
+import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -81,10 +84,13 @@ public class PacienteLookupActivity extends AppActivity {
         AppSpacing.dp(48, getResources()));
     buttonParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
     form.addView(searchButton, buttonParams);
-    root.addView(form);
+
+    LinearLayout content = new LinearLayout(this);
+    content.setOrientation(LinearLayout.VERTICAL);
+    content.addView(form);
 
     state = new StateView(this);
-    root.addView(state);
+    content.addView(state);
 
     resultContainer = new LinearLayout(this);
     resultContainer.setOrientation(LinearLayout.VERTICAL);
@@ -92,8 +98,21 @@ public class PacienteLookupActivity extends AppActivity {
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.SM, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-    root.addView(resultContainer);
+        AppSpacing.dp(AppSpacing.XL, getResources()));
+    content.addView(resultContainer);
+
+    // Contenido scrolleable: deja la barra inferior siempre visible.
+    ScrollView scroller = new ScrollView(this);
+    scroller.setFillViewport(true);
+    scroller.addView(content, new ScrollView.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+    root.addView(scroller, new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+
+    root.addView(new SectionNavBar(this, Section.PACIENTES), new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
 
     return root;
   }

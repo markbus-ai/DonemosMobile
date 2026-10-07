@@ -25,5 +25,6 @@
         <activity android:name=".ui.turnos.TurnosActivity" />
         <activity android:name=".ui.donaciones.DonacionesActivity" />
         <activity android:name=".ui.aptitud.AptitudActivity" />
+        <activity android:name=".ui.mas.MasActivity" />
     </application>
 </manifest>

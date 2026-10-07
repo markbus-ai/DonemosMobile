@@ -3,13 +3,20 @@ package com.donemosmobile.ui.components;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.donemosmobile.ui.theme.AppColors;
-import com.donemosmobile.ui.theme.AppSpacing;
 
+/**
+ * Barra de navegación inferior persistente.
+ *
+ * <p>Dibuja una línea divisoria y una fila de ítems equiespaciados, con la
+ * sección actual resaltada. La lógica de a qué pantalla ir queda en el
+ * listener: la barra sólo comunica qué posición se tocó.
+ */
 public class AppNavBar extends LinearLayout {
 
   public interface OnItemSelectedListener {
@@ -17,21 +24,38 @@ public class AppNavBar extends LinearLayout {
   }
 
   private final TextView[] items;
-  private int selected = 0;
+  private int selected;
 
   public AppNavBar(Context context, String[] labels, OnItemSelectedListener listener) {
+    this(context, labels, 0, listener);
+  }
+
+  public AppNavBar(Context context, String[] labels, int selectedIndex,
+      OnItemSelectedListener listener) {
     super(context);
 
-    setOrientation(HORIZONTAL);
+    setOrientation(VERTICAL);
     setBackgroundColor(AppColors.BACKGROUND);
     setElevation(dp(8));
+
+    this.selected = selectedIndex;
+
+    // Línea divisoria superior: separa el contenido de la barra.
+    View divider = new View(context);
+    divider.setBackgroundColor(AppColors.DIVIDER);
+    addView(divider, new LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1))));
+
+    LinearLayout row = new LinearLayout(context);
+    row.setOrientation(HORIZONTAL);
 
     items = new TextView[labels.length];
 
     for (int i = 0; i < labels.length; i++) {
       TextView item = new TextView(context);
       item.setText(labels[i]);
-      item.setTextSize(13);
+      item.setTextSize(11);
+      item.setSingleLine(true);
       item.setGravity(Gravity.CENTER);
 
       LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -46,9 +70,18 @@ public class AppNavBar extends LinearLayout {
       });
 
       items[i] = item;
-      addView(item, params);
+      row.addView(item, params);
     }
 
+    addView(row, new LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+    refresh();
+  }
+
+  /** Resalta una sección sin disparar navegación. */
+  public void setSelected(int position) {
+    selected = position;
     refresh();
   }
 

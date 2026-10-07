@@ -2,13 +2,14 @@ package com.donemosmobile.ui.aptitud;
 
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.ui.components.SectionNavBar;
+import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -31,6 +32,10 @@ public class AptitudActivity extends AppActivity {
     root.addView(title, new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
+
+    root.addView(new View(this), new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+    root.addView(new SectionNavBar(this, Section.APTITUD));
 
     setContentView(root);
   }

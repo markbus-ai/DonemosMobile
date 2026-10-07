@@ -188,12 +188,16 @@ public class HomeContent extends LinearLayout {
   }
 
   private void navigate(Context context, Class<?> activityClass) {
-    context.startActivity(new Intent(context, activityClass));
+    Intent intent = new Intent(context, activityClass);
+    // Reutiliza la pantalla si ya está abierta: nunca la apila dos veces.
+    intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+    context.startActivity(intent);
   }
 
   private void navigateToCreate(Context context, Class<?> activityClass) {
     Intent intent = new Intent(context, activityClass);
     intent.putExtra("mode", "create");
+    intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
     context.startActivity(intent);
   }
 

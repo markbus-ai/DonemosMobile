@@ -1,12 +1,14 @@
 package com.donemosmobile.ui.turnos;
 
 import android.app.TimePickerDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,7 +22,9 @@ import com.donemosmobile.data.turnos.TurnoRepository;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
+import com.donemosmobile.ui.components.SectionNavBar;
 import com.donemosmobile.ui.components.StateView;
+import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -75,6 +79,23 @@ public class TurnosActivity extends AppActivity {
     }
   }
 
+  /**
+   * Cuando la sección ya está abierta y se la vuelve a invocar (por ejemplo,
+   * desde el acceso "Nuevo turno" de la Home), reutilizamos la instancia y
+   * mostramos el formulario o la lista según el modo pedido.
+   */
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+
+    if (MODE_CREATE.equals(intent.getStringExtra(EXTRA_MODE))) {
+      showCreatePanel();
+    } else {
+      loadTurnos();
+    }
+  }
+
   private LinearLayout buildView() {
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
@@ -85,12 +106,15 @@ public class TurnosActivity extends AppActivity {
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
 
+    LinearLayout content = new LinearLayout(this);
+    content.setOrientation(LinearLayout.VERTICAL);
+
     createPanel = buildCreateForm();
     createPanel.setVisibility(View.GONE);
-    root.addView(createPanel);
+    content.addView(createPanel);
 
     state = new StateView(this);
-    root.addView(state);
+    content.addView(state);
 
     listContainer = new LinearLayout(this);
     listContainer.setOrientation(LinearLayout.VERTICAL);
@@ -99,7 +123,20 @@ public class TurnosActivity extends AppActivity {
         AppSpacing.dp(AppSpacing.SM, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.XL, getResources()));
-    root.addView(listContainer);
+    content.addView(listContainer);
+
+    // Contenido scrolleable: deja la barra inferior siempre visible.
+    ScrollView scroller = new ScrollView(this);
+    scroller.setFillViewport(true);
+    scroller.addView(content, new ScrollView.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+    root.addView(scroller, new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+
+    root.addView(new SectionNavBar(this, Section.TURNOS), new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
 
     return root;
   }
