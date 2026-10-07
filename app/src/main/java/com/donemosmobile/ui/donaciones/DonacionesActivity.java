@@ -1,15 +1,12 @@
 package com.donemosmobile.ui.donaciones;
 
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.InputType;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,11 +23,21 @@ import com.donemosmobile.data.network.dto.DonacionWarningResponse;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.TipoDonacionDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.AptitudLabels;
+import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
-import com.donemosmobile.ui.components.SectionNavBar;
+import com.donemosmobile.ui.components.ErrorText;
+import com.donemosmobile.ui.components.PatientPicker;
+import com.donemosmobile.ui.components.ScreenHeader;
+import com.donemosmobile.ui.components.ScreenScaffold;
+import com.donemosmobile.ui.components.SelectGroup;
+import com.donemosmobile.ui.components.SelectableRow;
 import com.donemosmobile.ui.components.StateView;
+import com.donemosmobile.ui.components.StatusPanel;
+import com.donemosmobile.ui.components.StepperField;
 import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -65,7 +72,7 @@ public class DonacionesActivity extends AppActivity {
   private CatalogoRepository catalogoRepository;
   private DonacionRepository donacionRepository;
 
-  private AppInput dniInput;
+  private PatientPicker picker;
   private StateView state;
 
   private AppCard patientPanel;
@@ -73,15 +80,12 @@ public class DonacionesActivity extends AppActivity {
   private TextView patientDni;
   private TextView patientAptitud;
 
-  private LinearLayout tipoContainer;
-  private TextView tipoStatus;
-  private TextView tipoError;
+  private SelectGroup tipoGroup;
 
   private LinearLayout compContainer;
   private TextView compHint;
-  private TextView compError;
+  private ErrorText compError;
   private final Map<Long, Integer> cantidades = new LinkedHashMap<>();
-  private final Map<Long, TextView> qtyViews = new LinkedHashMap<>();
 
   private LinearLayout clinicalHint;
   private AppInput hemoglobinaInput;
@@ -91,25 +95,25 @@ public class DonacionesActivity extends AppActivity {
   private AppInput diastolicaInput;
   private AppInput frecuenciaInput;
   private AppInput pesoInput;
-  private TextView clinicalError;
+  private ErrorText clinicalError;
 
-  private LinearLayout bolsaContainer;
-  private LinearLayout brazoContainer;
+  private SelectGroup bolsaGroup;
+  private SelectGroup brazoGroup;
   private AppInput anticoagulanteInput;
   private AppInput loteInput;
   private AppInput tubuladuraInput;
   private AppInput dificultadInput;
   private CheckBox dobleEtiquetaCheck;
-  private TextView bagError;
+  private ErrorText bagError;
 
   private AppButton submitButton;
-  private TextView formError;
+  private ErrorText formError;
 
-  private LinearLayout warningPanel;
+  private StatusPanel warningPanel;
   private LinearLayout warningList;
   private AppButton forzarButton;
 
-  private LinearLayout successPanel;
+  private StatusPanel successPanel;
   private TextView successNumber;
   private TextView successNote;
   private AppButton autoexclusionButton;
@@ -137,21 +141,18 @@ public class DonacionesActivity extends AppActivity {
 
   // --- Layout ---
 
-  private LinearLayout buildView() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(AppColors.BACKGROUND);
+  private View buildView() {
+    ScreenScaffold root = new ScreenScaffold(this, Section.DONACIONES);
+    root.setHeader(new ScreenHeader(this)
+        .title("Registrar donación")
+        .subtitle("Buscá al donante, elegí el tipo y confirmá la captura."));
 
-    root.addView(buildHeader(), new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    LinearLayout content = new LinearLayout(this);
-    content.setOrientation(LinearLayout.VERTICAL);
+    LinearLayout content = root.content();
     content.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.XL, getResources()));
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.SM),
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.XL));
 
     buildLookup(content);
     buildPatientPanel(content);
@@ -161,78 +162,42 @@ public class DonacionesActivity extends AppActivity {
     buildBagSection(content);
     buildActions(content);
 
-    ScrollView scroller = new ScrollView(this);
-    scroller.setFillViewport(true);
-    scroller.addView(content, new ScrollView.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-    root.addView(scroller, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-
-    root.addView(new SectionNavBar(this, Section.DONACIONES), new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
     return root;
-  }
-
-  private View buildHeader() {
-    LinearLayout header = new LinearLayout(this);
-    header.setOrientation(LinearLayout.VERTICAL);
-    header.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.LG, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-
-    TextView title = new TextView(this);
-    title.setText("Registrar donación");
-    AppTypography.headline1(title);
-    header.addView(title);
-
-    TextView subtitle = new TextView(this);
-    subtitle.setText("Buscá al donante, elegí el tipo y confirmá la captura.");
-    AppTypography.caption(subtitle);
-    header.addView(subtitle);
-
-    return header;
   }
 
   // --- Paso 1: paciente ---
 
   private void buildLookup(LinearLayout root) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(Gravity.BOTTOM);
-    LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    rowParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
+    picker = new PatientPicker(this, PatientPicker.Layout.ROW, "DNI", "Buscar",
+        AppButton.Style.FILLED, true, true);
+    picker.setListener(new PatientPicker.Listener() {
+      @Override
+      public void onSearch(String dni) {
+        search(dni);
+      }
 
-    dniInput = new AppInput(this, "DNI");
-    dniInput.getEditText().setInputType(InputType.TYPE_CLASS_NUMBER);
-    row.addView(dniInput, new LinearLayout.LayoutParams(
-        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+      @Override
+      public void onClear() {
+        resetAll();
+      }
+    });
+    root.addView(picker);
 
-    AppButton buscar = new AppButton(this, "Buscar", AppButton.Style.FILLED, v -> search());
-    LinearLayout.LayoutParams buscarParams = new LinearLayout.LayoutParams(
-        AppSpacing.dp(110, getResources()), AppSpacing.dp(56, getResources()));
-    buscarParams.leftMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    row.addView(buscar, buscarParams);
-    root.addView(row, rowParams);
-
-    state = new StateView(this);
-    root.addView(state);
-
-    AppButton clear = new AppButton(this, "Limpiar", AppButton.Style.TEXT, v -> resetAll());
-    root.addView(clear, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(40, getResources())));
+    state = picker.state();
   }
 
+  /** Reintento desde el estado de error: relee el DNI y valida. */
   private void search() {
-    String dni = dniInput.getText();
+    String dni = picker.dniInput().getText();
+    picker.dniInput().setError(null);
     if (dni.isEmpty()) {
-      dniInput.setError("Ingresá el DNI");
+      picker.dniInput().setError("Ingresá el DNI");
       return;
     }
-    dniInput.setError(null);
+    search(dni);
+  }
+
+  private void search(String dni) {
     hidePanels();
     state.showLoading();
 
@@ -255,7 +220,10 @@ public class DonacionesActivity extends AppActivity {
           state.showError("Sesión vencida, volvé a ingresar", null);
           return;
         }
-        state.showError(messageFor(type, message), DonacionesActivity.this::search);
+        state.showError(
+            ApiMessages.forType(type, message, "No se pudo registrar la donación",
+                "No se pudo completar la operación"),
+            DonacionesActivity.this::search);
       }
     });
   }
@@ -279,10 +247,7 @@ public class DonacionesActivity extends AppActivity {
 
     patientPanel = new AppCard(this, content);
     patientPanel.setVisibility(View.GONE);
-    LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    panelParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    root.addView(patientPanel, panelParams);
+    root.addView(patientPanel, Ui.matchWrap(this, AppSpacing.MD));
   }
 
   private void showPatient(PacienteDto paciente) {
@@ -290,31 +255,19 @@ public class DonacionesActivity extends AppActivity {
       return;
     }
     patientName.setText(paciente.displayName());
-    patientDni.setText("DNI " + safe(paciente.dni));
-    patientAptitud.setText("Aptitud: " + aptitudLabel(paciente));
+    patientDni.setText("DNI " + Ui.safe(paciente.dni));
+    patientAptitud.setText("Aptitud: " + AptitudLabels.current(paciente));
     patientPanel.setVisibility(View.VISIBLE);
   }
 
   // --- Paso 2: tipo de donacion ---
 
   private void buildTipoSection(LinearLayout root) {
-    sectionTitle(root, "Tipo de donación");
+    Ui.sectionTitle(root, this, "Tipo de donación", AppSpacing.LG);
 
-    tipoStatus = new TextView(this);
-    tipoStatus.setTextSize(14);
-    tipoStatus.setTextColor(AppColors.TEXT_SECONDARY);
-    tipoStatus.setPadding(0, AppSpacing.dp(AppSpacing.XS, getResources()), 0, 0);
-    tipoStatus.setClickable(true);
-    tipoStatus.setFocusable(true);
-    tipoStatus.setOnClickListener(v -> loadTipos());
-    root.addView(tipoStatus);
-
-    tipoContainer = new LinearLayout(this);
-    tipoContainer.setOrientation(LinearLayout.VERTICAL);
-    root.addView(tipoContainer);
-
-    tipoError = makeErrorText();
-    root.addView(tipoError);
+    tipoGroup = new SelectGroup(this);
+    tipoGroup.status().setOnClickListener(v -> loadTipos());
+    root.addView(tipoGroup);
   }
 
   private void loadTipos() {
@@ -348,26 +301,27 @@ public class DonacionesActivity extends AppActivity {
   }
 
   private void renderTipos() {
-    if (tipoContainer == null) {
+    if (tipoGroup == null) {
       return;
     }
-    tipoContainer.removeAllViews();
+    tipoGroup.options().removeAllViews();
+    TextView status = tipoGroup.status();
     if (tiposLoading) {
-      tipoStatus.setText("Cargando tipos de donación…");
-      tipoStatus.setTextColor(AppColors.TEXT_SECONDARY);
-      tipoStatus.setVisibility(View.VISIBLE);
+      status.setText("Cargando tipos de donación…");
+      status.setTextColor(AppColors.TEXT_SECONDARY);
+      status.setVisibility(View.VISIBLE);
       return;
     }
     if (tipos == null) {
-      tipoStatus.setText("No se pudieron cargar los tipos. Tocá para reintentar.");
-      tipoStatus.setTextColor(AppColors.ERROR);
-      tipoStatus.setVisibility(View.VISIBLE);
+      status.setText("No se pudieron cargar los tipos. Tocá para reintentar.");
+      status.setTextColor(AppColors.ERROR);
+      status.setVisibility(View.VISIBLE);
       return;
     }
-    tipoStatus.setVisibility(View.GONE);
+    status.setVisibility(View.GONE);
     for (final TipoDonacionDto tipo : tipos) {
       String label = tipo.displayName() + (tipo.esAferesis ? " · aféresis" : "");
-      tipoContainer.addView(makeSelectableRow(label, isSelectedTipo(tipo),
+      tipoGroup.options().addView(new SelectableRow(this, label, isSelectedTipo(tipo),
           v -> selectTipo(tipo)));
     }
     renderComponentes();
@@ -379,7 +333,7 @@ public class DonacionesActivity extends AppActivity {
 
   private void selectTipo(TipoDonacionDto tipo) {
     selectedTipo = tipo;
-    hideError(tipoError);
+    tipoGroup.error().hide();
     // Preselecciona el componente que corresponde si aun no hay unidades.
     if (totalComponentes() == 0 && tipo.id != null && MAXIMOS.containsKey(tipo.codigoUpper())) {
       cantidades.put(tipo.id, 1);
@@ -391,7 +345,7 @@ public class DonacionesActivity extends AppActivity {
   // --- Paso 3: componentes ---
 
   private void buildComponentesSection(LinearLayout root) {
-    sectionTitle(root, "Componentes");
+    Ui.sectionTitle(root, this, "Componentes", AppSpacing.LG);
 
     compHint = new TextView(this);
     compHint.setText("SANGRE máx. 1 · PLASMA máx. 1 · PLAQUETAS máx. 3");
@@ -402,7 +356,7 @@ public class DonacionesActivity extends AppActivity {
     compContainer.setOrientation(LinearLayout.VERTICAL);
     root.addView(compContainer);
 
-    compError = makeErrorText();
+    compError = new ErrorText(this);
     root.addView(compError);
   }
 
@@ -411,7 +365,6 @@ public class DonacionesActivity extends AppActivity {
       return;
     }
     compContainer.removeAllViews();
-    qtyViews.clear();
     if (tipos == null) {
       return;
     }
@@ -419,69 +372,14 @@ public class DonacionesActivity extends AppActivity {
       if (tipo.id == null || !MAXIMOS.containsKey(tipo.codigoUpper())) {
         continue;
       }
-      compContainer.addView(buildComponentRow(tipo));
+      StepperField stepper = new StepperField(this, tipo.displayName(), cantidad(tipo),
+          MAXIMOS.getOrDefault(tipo.codigoUpper(), 1));
+      stepper.setOnChange(value -> {
+        cantidades.put(tipo.id, value);
+        compError.hide();
+      });
+      compContainer.addView(stepper);
     }
-  }
-
-  private LinearLayout buildComponentRow(final TipoDonacionDto tipo) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(Gravity.CENTER_VERTICAL);
-    row.setBackground(rounded(AppColors.SURFACE, 12));
-    row.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.XS, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.XS, getResources()));
-    LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    rowParams.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-    row.setLayoutParams(rowParams);
-
-    TextView label = new TextView(this);
-    label.setText(tipo.displayName());
-    label.setTextSize(15);
-    label.setTextColor(AppColors.TEXT_PRIMARY);
-    row.addView(label, new LinearLayout.LayoutParams(
-        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-    AppButton minus = new AppButton(this, "\u2212", AppButton.Style.TEXT,
-        v -> changeComponent(tipo, -1));
-    minus.setLayoutParams(new LinearLayout.LayoutParams(
-        AppSpacing.dp(44, getResources()), AppSpacing.dp(44, getResources())));
-    row.addView(minus);
-
-    TextView qty = new TextView(this);
-    qty.setText(String.valueOf(cantidad(tipo)));
-    qty.setTextSize(16);
-    qty.setTextColor(AppColors.TEXT_PRIMARY);
-    qty.setGravity(Gravity.CENTER);
-    row.addView(qty, new LinearLayout.LayoutParams(
-        AppSpacing.dp(36, getResources()), ViewGroup.LayoutParams.WRAP_CONTENT));
-    qtyViews.put(tipo.id, qty);
-
-    AppButton plus = new AppButton(this, "+", AppButton.Style.TEXT,
-        v -> changeComponent(tipo, 1));
-    plus.setLayoutParams(new LinearLayout.LayoutParams(
-        AppSpacing.dp(44, getResources()), AppSpacing.dp(44, getResources())));
-    row.addView(plus);
-
-    return row;
-  }
-
-  private void changeComponent(TipoDonacionDto tipo, int delta) {
-    if (tipo.id == null) {
-      return;
-    }
-    int actual = cantidad(tipo);
-    int max = MAXIMOS.getOrDefault(tipo.codigoUpper(), 1);
-    int nuevo = Math.max(0, Math.min(max, actual + delta));
-    cantidades.put(tipo.id, nuevo);
-    TextView qty = qtyViews.get(tipo.id);
-    if (qty != null) {
-      qty.setText(String.valueOf(nuevo));
-    }
-    hideError(compError);
   }
 
   private int cantidad(TipoDonacionDto tipo) {
@@ -502,7 +400,7 @@ public class DonacionesActivity extends AppActivity {
   // --- Paso 4: signos clinicos ---
 
   private void buildClinicalSection(LinearLayout root) {
-    sectionTitle(root, "Signos clínicos");
+    Ui.sectionTitle(root, this, "Signos clínicos", AppSpacing.LG);
 
     clinicalHint = new LinearLayout(this);
     clinicalHint.setOrientation(LinearLayout.VERTICAL);
@@ -514,15 +412,19 @@ public class DonacionesActivity extends AppActivity {
     clinicalHint.setVisibility(View.GONE);
     root.addView(clinicalHint);
 
-    hemoglobinaInput = addInput(root, "Hemoglobina (g/dL)", decimalNumber());
-    hematocritoInput = addInput(root, "Hematocrito (%)", decimalNumber());
-    plaquetasInput = addInput(root, "Plaquetas (/mm³)", wholeNumber());
-    sistolicaInput = addInput(root, "Presión sistólica", wholeNumber());
-    diastolicaInput = addInput(root, "Presión diastólica", wholeNumber());
-    frecuenciaInput = addInput(root, "Frecuencia cardíaca", wholeNumber());
-    pesoInput = addInput(root, "Peso del donante (kg)", decimalNumber());
+    hemoglobinaInput = Ui.addInput(root, this, "Hemoglobina (g/dL)", Ui.decimalNumber(),
+        AppSpacing.SM);
+    hematocritoInput = Ui.addInput(root, this, "Hematocrito (%)", Ui.decimalNumber(),
+        AppSpacing.SM);
+    plaquetasInput = Ui.addInput(root, this, "Plaquetas (/mm³)", Ui.wholeNumber(), AppSpacing.SM);
+    sistolicaInput = Ui.addInput(root, this, "Presión sistólica", Ui.wholeNumber(), AppSpacing.SM);
+    diastolicaInput = Ui.addInput(root, this, "Presión diastólica", Ui.wholeNumber(),
+        AppSpacing.SM);
+    frecuenciaInput = Ui.addInput(root, this, "Frecuencia cardíaca", Ui.wholeNumber(),
+        AppSpacing.SM);
+    pesoInput = Ui.addInput(root, this, "Peso del donante (kg)", Ui.decimalNumber(), AppSpacing.SM);
 
-    clinicalError = makeErrorText();
+    clinicalError = new ErrorText(this);
     root.addView(clinicalError);
   }
 
@@ -537,44 +439,29 @@ public class DonacionesActivity extends AppActivity {
   // --- Paso 5: datos de la bolsa ---
 
   private void buildBagSection(LinearLayout root) {
-    sectionTitle(root, "Datos de la bolsa");
+    Ui.sectionTitle(root, this, "Datos de la bolsa", AppSpacing.LG);
 
-    TextView bolsaLabel = new TextView(this);
-    bolsaLabel.setText("Tipo de bolsa");
-    AppTypography.caption(bolsaLabel);
-    root.addView(bolsaLabel);
+    bolsaGroup = new SelectGroup(this, "Tipo de bolsa", 0);
+    root.addView(bolsaGroup);
 
-    bolsaContainer = new LinearLayout(this);
-    bolsaContainer.setOrientation(LinearLayout.VERTICAL);
-    root.addView(bolsaContainer);
+    brazoGroup = new SelectGroup(this, "Brazo", AppSpacing.SM);
+    root.addView(brazoGroup);
 
-    TextView brazoLabel = new TextView(this);
-    brazoLabel.setText("Brazo");
-    AppTypography.caption(brazoLabel);
-    LinearLayout.LayoutParams brazoLabelParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    brazoLabelParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(brazoLabel, brazoLabelParams);
-
-    brazoContainer = new LinearLayout(this);
-    brazoContainer.setOrientation(LinearLayout.VERTICAL);
-    root.addView(brazoContainer);
-
-    anticoagulanteInput = addInput(root, "Anticoagulante", InputType.TYPE_CLASS_TEXT);
-    loteInput = addInput(root, "Lote", InputType.TYPE_CLASS_TEXT);
-    tubuladuraInput = addInput(root, "Tubuladura", InputType.TYPE_CLASS_TEXT);
-    dificultadInput = addInput(root, "Dificultad", InputType.TYPE_CLASS_TEXT);
+    anticoagulanteInput = Ui.addInput(root, this, "Anticoagulante", InputType.TYPE_CLASS_TEXT,
+        AppSpacing.SM);
+    loteInput = Ui.addInput(root, this, "Lote", InputType.TYPE_CLASS_TEXT, AppSpacing.SM);
+    tubuladuraInput = Ui.addInput(root, this, "Tubuladura", InputType.TYPE_CLASS_TEXT,
+        AppSpacing.SM);
+    dificultadInput = Ui.addInput(root, this, "Dificultad", InputType.TYPE_CLASS_TEXT,
+        AppSpacing.SM);
 
     dobleEtiquetaCheck = new CheckBox(this);
     dobleEtiquetaCheck.setText("Doble etiqueta");
     dobleEtiquetaCheck.setTextColor(AppColors.TEXT_PRIMARY);
     dobleEtiquetaCheck.setTextSize(14);
-    LinearLayout.LayoutParams checkParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    checkParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(dobleEtiquetaCheck, checkParams);
+    root.addView(dobleEtiquetaCheck, Ui.matchWrap(this, AppSpacing.SM));
 
-    bagError = makeErrorText();
+    bagError = new ErrorText(this);
     root.addView(bagError);
 
     renderBolsa();
@@ -582,30 +469,30 @@ public class DonacionesActivity extends AppActivity {
   }
 
   private void renderBolsa() {
-    if (bolsaContainer == null) {
+    if (bolsaGroup == null) {
       return;
     }
-    bolsaContainer.removeAllViews();
+    bolsaGroup.options().removeAllViews();
     for (final String value : new String[] {"doble", "triple", "cuadruple", "quintuple"}) {
-      bolsaContainer.addView(makeSelectableRow(value, value.equals(selectedTipoBolsa),
+      bolsaGroup.options().addView(new SelectableRow(this, value, value.equals(selectedTipoBolsa),
           v -> {
             selectedTipoBolsa = value;
-            hideError(bagError);
+            bagError.hide();
             renderBolsa();
           }));
     }
   }
 
   private void renderBrazo() {
-    if (brazoContainer == null) {
+    if (brazoGroup == null) {
       return;
     }
-    brazoContainer.removeAllViews();
+    brazoGroup.options().removeAllViews();
     for (final String value : new String[] {"izquierdo", "derecho"}) {
-      brazoContainer.addView(makeSelectableRow(value, value.equals(selectedBrazo),
+      brazoGroup.options().addView(new SelectableRow(this, value, value.equals(selectedBrazo),
           v -> {
             selectedBrazo = value;
-            hideError(bagError);
+            bagError.hide();
             renderBrazo();
           }));
     }
@@ -614,101 +501,51 @@ public class DonacionesActivity extends AppActivity {
   // --- Paso 6: confirmar + paneles de resultado ---
 
   private void buildActions(LinearLayout root) {
-    formError = makeErrorText();
+    formError = new ErrorText(this);
     root.addView(formError);
 
-    warningPanel = new LinearLayout(this);
-    warningPanel.setOrientation(LinearLayout.VERTICAL);
-    warningPanel.setBackground(rounded(AppColors.PRIMARY_TINT, 12));
-    warningPanel.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()));
-    warningPanel.setVisibility(View.GONE);
-
-    TextView warningTitle = new TextView(this);
-    warningTitle.setText("La donación no está habilitada");
-    AppTypography.bodyMedium(warningTitle);
-    warningPanel.addView(warningTitle);
-
+    warningPanel = new StatusPanel(this, "La donación no está habilitada",
+        AppColors.PRIMARY_TINT);
     warningList = new LinearLayout(this);
     warningList.setOrientation(LinearLayout.VERTICAL);
-    warningPanel.addView(warningList);
+    warningPanel.body().addView(warningList);
 
     TextView warningNote = new TextView(this);
     warningNote.setText("Forzar deja registrada una autorización extraordinaria "
         + "auditada con tu usuario para este donante.");
     warningNote.setTextSize(12);
     warningNote.setTextColor(AppColors.TEXT_SECONDARY);
-    LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    noteParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    warningPanel.addView(warningNote, noteParams);
+    warningPanel.body().addView(warningNote, Ui.matchWrap(this, AppSpacing.SM));
 
-    forzarButton = new AppButton(this, "Forzar con autorización", AppButton.Style.FILLED,
-        v -> submit(true));
-    LinearLayout.LayoutParams forzarParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(48, getResources()));
-    forzarParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    warningPanel.addView(forzarButton, forzarParams);
+    forzarButton = warningPanel.addAction("Forzar con autorización", AppButton.Style.FILLED,
+        v -> submit(true), AppSpacing.SM);
+    root.addView(warningPanel, Ui.matchWrap(this, AppSpacing.MD));
 
-    LinearLayout.LayoutParams warningParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    warningParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    root.addView(warningPanel, warningParams);
-
-    successPanel = new LinearLayout(this);
-    successPanel.setOrientation(LinearLayout.VERTICAL);
-    successPanel.setBackground(rounded(AppColors.SURFACE, 12));
-    successPanel.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()));
-    successPanel.setVisibility(View.GONE);
-
-    TextView successTitle = new TextView(this);
-    successTitle.setText("Donación registrada");
-    AppTypography.bodyMedium(successTitle);
-    successPanel.addView(successTitle);
+    successPanel = new StatusPanel(this, "Donación registrada", AppColors.SURFACE);
 
     successNumber = new TextView(this);
     successNumber.setTextSize(18);
     successNumber.setTextColor(AppColors.PRIMARY);
     successNumber.setTypeface(android.graphics.Typeface.create(
         "sans-serif-medium", android.graphics.Typeface.NORMAL));
-    LinearLayout.LayoutParams numberParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    numberParams.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-    successPanel.addView(successNumber, numberParams);
+    successPanel.body().addView(successNumber, Ui.matchWrap(this, AppSpacing.XS));
 
     successNote = new TextView(this);
     successNote.setTextSize(13);
     successNote.setTextColor(AppColors.SUCCESS);
     successNote.setVisibility(View.GONE);
-    successPanel.addView(successNote);
+    successPanel.body().addView(successNote);
 
-    autoexclusionButton = new AppButton(this, "Marcar autoexclusión",
-        AppButton.Style.OUTLINED, v -> promptAutoexclusion());
-    LinearLayout.LayoutParams autoParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(48, getResources()));
-    autoParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    successPanel.addView(autoexclusionButton, autoParams);
-
-    anotherButton = new AppButton(this, "Registrar otra donación",
-        AppButton.Style.TEXT, v -> resetAll());
-    successPanel.addView(anotherButton);
-
-    LinearLayout.LayoutParams successParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    successParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    root.addView(successPanel, successParams);
+    autoexclusionButton = successPanel.addAction("Marcar autoexclusión", AppButton.Style.OUTLINED,
+        v -> promptAutoexclusion(), AppSpacing.SM);
+    anotherButton = successPanel.addAction("Registrar otra donación", AppButton.Style.TEXT,
+        v -> resetAll(), 0);
+    root.addView(successPanel, Ui.matchWrap(this, AppSpacing.MD));
 
     submitButton = new AppButton(this, "CONFIRMAR", AppButton.Style.FILLED, v -> submit(false));
     LinearLayout.LayoutParams submitParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(52, getResources()));
-    submitParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
+        ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52));
+    submitParams.topMargin = Ui.dp(this, AppSpacing.MD);
     root.addView(submitButton, submitParams);
   }
 
@@ -720,7 +557,7 @@ public class DonacionesActivity extends AppActivity {
     }
     clearErrors();
     hideWarning();
-    successPanel.setVisibility(View.GONE);
+    successPanel.hide();
     if (!forzar && !validate()) {
       return;
     }
@@ -750,7 +587,9 @@ public class DonacionesActivity extends AppActivity {
       @Override
       public void onError(ApiError.Type type, String message) {
         setSubmitting(false);
-        showError(formError, messageFor(type, message));
+        formError.show(
+            ApiMessages.forType(type, message, "No se pudo registrar la donación",
+                "No se pudo completar la operación"));
       }
     });
   }
@@ -761,19 +600,19 @@ public class DonacionesActivity extends AppActivity {
     body.tipoId = selectedTipo != null ? selectedTipo.id : null;
     body.tipoBolsa = selectedTipoBolsa;
     body.brazo = selectedBrazo;
-    body.anticoagulante = blankToNull(anticoagulanteInput.getText());
-    body.lote = blankToNull(loteInput.getText());
-    body.tubuladura = blankToNull(tubuladuraInput.getText());
-    body.dificultad = blankToNull(dificultadInput.getText());
+    body.anticoagulante = Ui.blankToNull(anticoagulanteInput.getText());
+    body.lote = Ui.blankToNull(loteInput.getText());
+    body.tubuladura = Ui.blankToNull(tubuladuraInput.getText());
+    body.dificultad = Ui.blankToNull(dificultadInput.getText());
     body.dobleEtiqueta = dobleEtiquetaCheck.isChecked();
 
-    body.hemoglobina = parseDoubleOrNull(hemoglobinaInput.getText());
-    body.hematocrito = parseDoubleOrNull(hematocritoInput.getText());
-    body.plaquetas = parseIntOrNull(plaquetasInput.getText());
-    body.presionSistolica = parseIntOrNull(sistolicaInput.getText());
-    body.presionDiastolica = parseIntOrNull(diastolicaInput.getText());
-    body.frecuenciaCardiaca = parseIntOrNull(frecuenciaInput.getText());
-    body.pesoDonante = parseDoubleOrNull(pesoInput.getText());
+    body.hemoglobina = Ui.parseDoubleOrNull(hemoglobinaInput.getText());
+    body.hematocrito = Ui.parseDoubleOrNull(hematocritoInput.getText());
+    body.plaquetas = Ui.parseIntOrNull(plaquetasInput.getText());
+    body.presionSistolica = Ui.parseIntOrNull(sistolicaInput.getText());
+    body.presionDiastolica = Ui.parseIntOrNull(diastolicaInput.getText());
+    body.frecuenciaCardiaca = Ui.parseIntOrNull(frecuenciaInput.getText());
+    body.pesoDonante = Ui.parseDoubleOrNull(pesoInput.getText());
 
     body.componentes = new ArrayList<>();
     for (Map.Entry<Long, Integer> entry : cantidades.entrySet()) {
@@ -797,11 +636,11 @@ public class DonacionesActivity extends AppActivity {
       return false;
     }
     if (selectedTipo == null || selectedTipo.id == null) {
-      showError(tipoError, "Elegí el tipo de donación");
+      tipoGroup.error().show("Elegí el tipo de donación");
       ok = false;
     }
     if (totalComponentes() < 1) {
-      showError(compError, "Agregá al menos un componente");
+      compError.show("Agregá al menos un componente");
       ok = false;
     }
     if (!validNumeric(hemoglobinaInput, clinicalError)) {
@@ -828,31 +667,30 @@ public class DonacionesActivity extends AppActivity {
 
     boolean aferesis = selectedTipo != null && selectedTipo.esAferesis;
     if (aferesis) {
-      if (parseDoubleOrNull(plaquetasInput.getText()) == null
-          || parseDoubleOrNull(hematocritoInput.getText()) == null) {
-        showError(clinicalError,
-            "Aféresis: cargá plaquetas y hematocrito");
+      if (Ui.parseDoubleOrNull(plaquetasInput.getText()) == null
+          || Ui.parseDoubleOrNull(hematocritoInput.getText()) == null) {
+        clinicalError.show("Aféresis: cargá plaquetas y hematocrito");
         ok = false;
       }
     }
 
-    Integer sistolica = parseIntOrNull(sistolicaInput.getText());
-    Integer diastolica = parseIntOrNull(diastolicaInput.getText());
+    Integer sistolica = Ui.parseIntOrNull(sistolicaInput.getText());
+    Integer diastolica = Ui.parseIntOrNull(diastolicaInput.getText());
     if (sistolica != null && diastolica != null && diastolica > sistolica) {
-      showError(clinicalError, "La presión diastólica no puede superar la sistólica");
+      clinicalError.show("La presión diastólica no puede superar la sistólica");
       ok = false;
     }
 
     if (!ok && clinicalError.getVisibility() != View.VISIBLE
         && compError.getVisibility() != View.VISIBLE
-        && tipoError.getVisibility() != View.VISIBLE) {
-      showError(formError, "Revisá los datos antes de confirmar");
+        && tipoGroup.error().getVisibility() != View.VISIBLE) {
+      formError.show("Revisá los datos antes de confirmar");
     }
     return ok;
   }
 
   /** Valida que un input opcional, si vino, sea numerico. */
-  private boolean validNumeric(AppInput input, TextView errorTarget) {
+  private boolean validNumeric(AppInput input, ErrorText errorTarget) {
     String text = input.getText();
     if (text.isEmpty()) {
       return true;
@@ -861,7 +699,7 @@ public class DonacionesActivity extends AppActivity {
       Double.parseDouble(text);
       return true;
     } catch (NumberFormatException e) {
-      showError(errorTarget, "Hay un valor numérico inválido");
+      errorTarget.show("Hay un valor numérico inválido");
       return false;
     }
   }
@@ -875,16 +713,13 @@ public class DonacionesActivity extends AppActivity {
       item.setText("• " + message);
       item.setTextSize(14);
       item.setTextColor(AppColors.TEXT_PRIMARY);
-      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-      params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-      warningList.addView(item, params);
+      warningList.addView(item, Ui.matchWrap(this, AppSpacing.XS));
     }
-    warningPanel.setVisibility(View.VISIBLE);
+    warningPanel.show();
   }
 
   private void hideWarning() {
-    warningPanel.setVisibility(View.GONE);
+    warningPanel.hide();
   }
 
   private void showSuccess(DonacionDto donacion) {
@@ -895,7 +730,7 @@ public class DonacionesActivity extends AppActivity {
     successNote.setVisibility(View.GONE);
     autoexclusionButton.setEnabled(true);
     autoexclusionButton.setVisibility(View.VISIBLE);
-    successPanel.setVisibility(View.VISIBLE);
+    successPanel.show();
     submitButton.setVisibility(View.GONE);
     hideWarning();
     Toast.makeText(this, "Donación registrada", Toast.LENGTH_SHORT).show();
@@ -937,13 +772,15 @@ public class DonacionesActivity extends AppActivity {
           @Override
           public void onValidationError(Map<String, String> fieldErrors) {
             autoexclusionButton.setEnabled(true);
-            showError(formError, "La donación ya tiene una autoexclusión registrada");
+            formError.show("La donación ya tiene una autoexclusión registrada");
           }
 
           @Override
           public void onError(ApiError.Type type, String message) {
             autoexclusionButton.setEnabled(true);
-            showError(formError, messageFor(type, message));
+            formError.show(
+                ApiMessages.forType(type, message, "No se pudo registrar la donación",
+                    "No se pudo completar la operación"));
           }
         });
   }
@@ -951,8 +788,8 @@ public class DonacionesActivity extends AppActivity {
   // --- Reset y helpers ---
 
   private void resetAll() {
-    dniInput.getEditText().setText("");
-    dniInput.setError(null);
+    picker.dniInput().getEditText().setText("");
+    picker.dniInput().setError(null);
     selectedPaciente = null;
     selectedTipo = null;
     createdDonacion = null;
@@ -997,10 +834,10 @@ public class DonacionesActivity extends AppActivity {
       patientPanel.setVisibility(View.GONE);
     }
     if (warningPanel != null) {
-      warningPanel.setVisibility(View.GONE);
+      warningPanel.hide();
     }
     if (successPanel != null) {
-      successPanel.setVisibility(View.GONE);
+      successPanel.hide();
     }
     if (submitButton != null) {
       submitButton.setVisibility(View.VISIBLE);
@@ -1026,29 +863,29 @@ public class DonacionesActivity extends AppActivity {
       handled = true;
     }
     if (errors.containsKey("tipo_id")) {
-      showError(tipoError, "Elegí un tipo de donación válido");
+      tipoGroup.error().show("Elegí un tipo de donación válido");
       handled = true;
     }
     if (errors.containsKey("componentes")) {
-      showError(compError, errors.get("componentes"));
+      compError.show(errors.get("componentes"));
       handled = true;
     } else {
       for (String key : errors.keySet()) {
         if (key.startsWith("componentes.")) {
-          showError(compError, errors.get(key));
+          compError.show(errors.get(key));
           handled = true;
           break;
         }
       }
     }
     if (errors.containsKey("signos_clinicos")) {
-      showError(clinicalError, errors.get("signos_clinicos"));
+      clinicalError.show(errors.get("signos_clinicos"));
       handled = true;
     }
     for (String key : new String[] {"tipo_bolsa", "anticoagulante", "lote",
         "tubuladura", "brazo", "dificultad", "doble_etiqueta"}) {
       if (errors.containsKey(key)) {
-        showError(bagError, errors.get(key));
+        bagError.show(errors.get(key));
         handled = true;
         break;
       }
@@ -1056,166 +893,16 @@ public class DonacionesActivity extends AppActivity {
     if (!handled) {
       String first = errors.values().iterator().hasNext()
           ? errors.values().iterator().next() : null;
-      showError(formError, first != null && !first.isEmpty()
+      formError.show(first != null && !first.isEmpty()
           ? first : "No se pudo registrar la donación");
     }
   }
 
   private void clearErrors() {
-    hideError(tipoError);
-    hideError(compError);
-    hideError(clinicalError);
-    hideError(bagError);
-    hideError(formError);
-  }
-
-  // --- Helpers de UI ---
-
-  /** Agrega un titulo de seccion y lo devuelve. */
-  private TextView sectionTitle(LinearLayout root, String text) {
-    TextView title = new TextView(this);
-    title.setText(text);
-    AppTypography.headline2(title);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.LG, getResources());
-    root.addView(title, params);
-    return title;
-  }
-
-  private AppInput addInput(LinearLayout root, String hint, int inputType) {
-    AppInput input = new AppInput(this, hint);
-    input.getEditText().setInputType(inputType);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(input, params);
-    return input;
-  }
-
-  private int decimalNumber() {
-    return InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL;
-  }
-
-  private int wholeNumber() {
-    return InputType.TYPE_CLASS_NUMBER;
-  }
-
-  private TextView makeSelectableRow(String text, boolean selected, View.OnClickListener listener) {
-    TextView row = new TextView(this);
-    row.setText(text);
-    row.setTextSize(15);
-    row.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()));
-    row.setBackground(rounded(selected ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 12));
-    row.setTextColor(selected ? AppColors.PRIMARY : AppColors.TEXT_PRIMARY);
-    row.setClickable(true);
-    row.setFocusable(true);
-    row.setOnClickListener(listener);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-    row.setLayoutParams(params);
-    return row;
-  }
-
-  private TextView makeErrorText() {
-    TextView error = new TextView(this);
-    error.setTextSize(13);
-    error.setTextColor(AppColors.ERROR);
-    error.setVisibility(View.GONE);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-    params.leftMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    error.setLayoutParams(params);
-    return error;
-  }
-
-  private void showError(TextView error, String message) {
-    if (error == null) {
-      return;
-    }
-    error.setText(message);
-    error.setVisibility(View.VISIBLE);
-  }
-
-  private void hideError(TextView error) {
-    if (error != null) {
-      error.setVisibility(View.GONE);
-    }
-  }
-
-  private GradientDrawable rounded(int color, float radiusDp) {
-    GradientDrawable drawable = new GradientDrawable();
-    drawable.setColor(color);
-    drawable.setCornerRadius(AppSpacing.dp((int) radiusDp, getResources()));
-    return drawable;
-  }
-
-  private String blankToNull(String value) {
-    return value != null && !value.trim().isEmpty() ? value.trim() : null;
-  }
-
-  private Double parseDoubleOrNull(String value) {
-    if (value == null || value.trim().isEmpty()) {
-      return null;
-    }
-    try {
-      return Double.valueOf(value.trim());
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
-  private Integer parseIntOrNull(String value) {
-    if (value == null || value.trim().isEmpty()) {
-      return null;
-    }
-    try {
-      return (int) Double.parseDouble(value.trim());
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
-  private String aptitudLabel(PacienteDto paciente) {
-    if (paciente.aptitud != null && paciente.aptitud.tipo != null) {
-      switch (paciente.aptitud.tipo) {
-        case "APTO":
-          return "Apto";
-        case "APTO_OBSERVACION":
-          return "Apto con observación";
-        case "NO_APTO":
-          return "No apto";
-        default:
-          return paciente.aptitud.tipo;
-      }
-    }
-    return "No disponible";
-  }
-
-  private String safe(String value) {
-    return value != null && !value.isEmpty() ? value : "—";
-  }
-
-  private String messageFor(ApiError.Type type, String message) {
-    switch (type) {
-      case UNAUTHORIZED:
-        return "Sesión vencida, volvé a ingresar";
-      case NETWORK:
-        return "No se pudo conectar";
-      case SERVER:
-        return "Error del servidor, intentá de nuevo";
-      case CLIENT:
-        return message != null && !message.isEmpty()
-            ? message : "No se pudo registrar la donación";
-      default:
-        return message != null && !message.isEmpty()
-            ? message : "No se pudo completar la operación";
-    }
+    tipoGroup.error().hide();
+    compError.hide();
+    clinicalError.hide();
+    bagError.hide();
+    formError.hide();
   }
 }
