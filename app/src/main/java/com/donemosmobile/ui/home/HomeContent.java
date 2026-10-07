@@ -96,10 +96,10 @@ public class HomeContent extends LinearLayout {
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         0);
-    row1.addView(makeTile(context, "Registrar donación", true,
+    row1.addView(makeTile(context, "Registrar donación", false,
         v -> navigate(context, DonacionesActivity.class)), gridParams());
     row1.addView(spacer());
-    row1.addView(makeTile(context, "Nuevo turno", false,
+    row1.addView(makeTile(context, "Nuevo turno", true,
         v -> navigateToCreate(context, TurnosActivity.class)), gridParams());
     addView(row1);
 
@@ -111,7 +111,7 @@ public class HomeContent extends LinearLayout {
         AppSpacing.dp(AppSpacing.MD, getResources()),
         0);
     row2.addView(makeTile(context, "Nuevo paciente", false,
-        v -> navigateToCreate(context, PacientesActivity.class)), gridParams());
+        v -> navigate(context, PacientesActivity.class)), gridParams());
     row2.addView(spacer());
     row2.addView(makeTile(context, "Evaluar aptitud", false,
         v -> navigate(context, AptitudActivity.class)), gridParams());
@@ -150,19 +150,24 @@ public class HomeContent extends LinearLayout {
     return "Buenas noches";
   }
 
-  private LinearLayout makeTile(Context context, String text, boolean primary, OnClickListener listener) {
+  /**
+   * Tile de acción rápida. {@code enabled} distingue lo que ya funciona (fondo
+   * con acento) de lo que todavía no (fondo gris + "Próximamente"), así el
+   * usuario lo sabe antes de tocar.
+   */
+  private LinearLayout makeTile(Context context, String text, boolean enabled, OnClickListener listener) {
     TextView label = new TextView(context);
     label.setText(text);
     label.setTextSize(15);
     label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-    label.setTextColor(AppColors.TEXT_PRIMARY);
+    label.setTextColor(enabled ? AppColors.TEXT_PRIMARY : AppColors.TEXT_SECONDARY);
     label.setGravity(Gravity.CENTER);
     label.setPadding(AppSpacing.dp(AppSpacing.SM, getResources()), 0, AppSpacing.dp(AppSpacing.SM, getResources()), 0);
 
     LinearLayout tile = new LinearLayout(context);
     tile.setOrientation(VERTICAL);
     tile.setGravity(Gravity.CENTER);
-    tile.setBackground(rounded(primary ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 16));
+    tile.setBackground(rounded(enabled ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 16));
     tile.setClickable(true);
     tile.setFocusable(true);
     tile.setOnClickListener(listener);
@@ -173,6 +178,19 @@ public class HomeContent extends LinearLayout {
     tile.setForeground(context.getDrawable(outValue.resourceId));
 
     tile.addView(label);
+
+    if (!enabled) {
+      TextView comingSoon = new TextView(context);
+      comingSoon.setText("Próximamente");
+      comingSoon.setTextSize(11);
+      comingSoon.setTextColor(AppColors.TEXT_SECONDARY);
+      comingSoon.setGravity(Gravity.CENTER);
+      LinearLayout.LayoutParams soonParams = new LinearLayout.LayoutParams(
+          ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+      soonParams.topMargin = AppSpacing.dp(2, getResources());
+      tile.addView(comingSoon, soonParams);
+    }
+
     tile.setLayoutParams(new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         AppSpacing.dp(88, getResources())));
