@@ -3,11 +3,9 @@ package com.donemosmobile.ui.pacientes;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.InputType;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,9 +14,13 @@ import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppInput;
-import com.donemosmobile.ui.components.SectionNavBar;
+import com.donemosmobile.ui.components.FormActions;
+import com.donemosmobile.ui.components.ScreenHeader;
+import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.components.StateView;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -57,83 +59,35 @@ public class PacientesActivity extends AppActivity {
     setContentView(buildView());
   }
 
-  private LinearLayout buildView() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(AppColors.BACKGROUND);
+  private View buildView() {
+    ScreenScaffold root = new ScreenScaffold(this, null);
+    root.setHeader(new ScreenHeader(this).back(v -> finish()).title("Nuevo paciente"));
 
-    root.addView(buildHeader(), new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    LinearLayout content = new LinearLayout(this);
-    content.setOrientation(LinearLayout.VERTICAL);
+    LinearLayout content = root.content();
     content.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.XL, getResources()));
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.SM),
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.XL));
     buildForm(content);
-
-    ScrollView scroller = new ScrollView(this);
-    scroller.setFillViewport(true);
-    scroller.addView(content, new ScrollView.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-    root.addView(scroller, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-
-    root.addView(new SectionNavBar(this, null), new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
     return root;
-  }
-
-  private View buildHeader() {
-    LinearLayout header = new LinearLayout(this);
-    header.setOrientation(LinearLayout.HORIZONTAL);
-    header.setGravity(Gravity.CENTER_VERTICAL);
-    header.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.LG, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-
-    TextView back = new TextView(this);
-    back.setText("\u2039 Volver");
-    back.setTextSize(15);
-    back.setTextColor(AppColors.PRIMARY);
-    back.setPadding(0, AppSpacing.dp(AppSpacing.XS, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()), AppSpacing.dp(AppSpacing.XS, getResources()));
-    back.setClickable(true);
-    back.setFocusable(true);
-    back.setOnClickListener(v -> finish());
-    header.addView(back);
-
-    TextView title = new TextView(this);
-    title.setText("Nuevo paciente");
-    AppTypography.headline1(title);
-    header.addView(title);
-
-    return header;
   }
 
   private void buildForm(LinearLayout root) {
     TextView help = new TextView(this);
     help.setText("Completá los datos del paciente. El DNI no puede repetirse.");
     AppTypography.caption(help);
-    LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    helpParams.bottomMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(help, helpParams);
+    root.addView(help, Ui.matchWrapBottom(this, AppSpacing.SM));
 
-    dniInput = addInput(root, "DNI", InputType.TYPE_CLASS_NUMBER);
-    nombreInput = addInput(root, "Nombre", InputType.TYPE_CLASS_TEXT);
-    apellidoInput = addInput(root, "Apellido", InputType.TYPE_CLASS_TEXT);
-    telefonoInput = addInput(root, "Teléfono", InputType.TYPE_CLASS_PHONE);
+    dniInput = Ui.addInput(root, this, "DNI", InputType.TYPE_CLASS_NUMBER, AppSpacing.SM);
+    nombreInput = Ui.addInput(root, this, "Nombre", InputType.TYPE_CLASS_TEXT, AppSpacing.SM);
+    apellidoInput = Ui.addInput(root, this, "Apellido", InputType.TYPE_CLASS_TEXT, AppSpacing.SM);
+    telefonoInput = Ui.addInput(root, this, "Teléfono", InputType.TYPE_CLASS_PHONE, AppSpacing.SM);
 
     addSexoSelector(root);
 
-    alturaInput = addInput(root, "Altura en cm (opcional)",
-        InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+    alturaInput = Ui.addInput(root, this, "Altura en cm (opcional)",
+        InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL, AppSpacing.SM);
 
     state = new StateView(this);
     root.addView(state);
@@ -142,59 +96,39 @@ public class PacientesActivity extends AppActivity {
     successBanner.setTextColor(AppColors.SUCCESS);
     successBanner.setTextSize(14);
     successBanner.setVisibility(View.GONE);
-    LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    bannerParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(successBanner, bannerParams);
+    root.addView(successBanner, Ui.matchWrap(this, AppSpacing.SM));
 
-    submitButton = new AppButton(this, "Crear paciente", AppButton.Style.FILLED, v -> submit());
-    LinearLayout.LayoutParams submitParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(48, getResources()));
-    submitParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    root.addView(submitButton, submitParams);
-
-    AppButton clear = new AppButton(this, "Limpiar formulario", AppButton.Style.TEXT,
-        v -> {
-          clearForm();
-          state.hide();
-          successBanner.setVisibility(View.GONE);
-        });
-    root.addView(clear);
-  }
-
-  private AppInput addInput(LinearLayout root, String hint, int inputType) {
-    AppInput input = new AppInput(this, hint);
-    input.getEditText().setInputType(inputType);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(input, params);
-    return input;
+    FormActions actions = new FormActions(this);
+    submitButton = actions.add("Crear paciente", AppButton.Style.FILLED, v -> submit(), 48,
+        AppSpacing.MD);
+    actions.add("Limpiar formulario", AppButton.Style.TEXT, v -> {
+      clearForm();
+      state.hide();
+      successBanner.setVisibility(View.GONE);
+    }, 48, 0);
+    root.addView(actions);
   }
 
   private void addSexoSelector(LinearLayout root) {
     TextView label = new TextView(this);
     label.setText("Sexo (opcional)");
     AppTypography.caption(label);
-    LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    labelParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    root.addView(label, labelParams);
+    root.addView(label, Ui.matchWrap(this, AppSpacing.MD));
 
     LinearLayout row = new LinearLayout(this);
     row.setOrientation(LinearLayout.HORIZONTAL);
     LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    rowParams.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
+    rowParams.topMargin = Ui.dp(this, AppSpacing.XS);
 
     sexoMasculino = new AppButton(this, "Masculino", AppButton.Style.OUTLINED,
         v -> selectSexo("M"));
     sexoFemenino = new AppButton(this, "Femenino", AppButton.Style.OUTLINED,
         v -> selectSexo("F"));
-    row.addView(sexoMasculino, new LinearLayout.LayoutParams(0, AppSpacing.dp(44, getResources()), 1));
+    row.addView(sexoMasculino, new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
     View gap = new View(this);
-    row.addView(gap, new LinearLayout.LayoutParams(AppSpacing.dp(AppSpacing.SM, getResources()), 1));
-    row.addView(sexoFemenino, new LinearLayout.LayoutParams(0, AppSpacing.dp(44, getResources()), 1));
+    row.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, AppSpacing.SM), 1));
+    row.addView(sexoFemenino, new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
     root.addView(row, rowParams);
 
     renderSexo();
@@ -256,7 +190,8 @@ public class PacientesActivity extends AppActivity {
       @Override
       public void onError(ApiError.Type type, String message) {
         setSubmitting(false);
-        state.showError(messageFor(type, message), PacientesActivity.this::submit);
+        state.showError(ApiMessages.forType(type, message, "No se pudo crear el paciente"),
+            PacientesActivity.this::submit);
       }
 
       @Override
@@ -399,22 +334,5 @@ public class PacientesActivity extends AppActivity {
     submitting = value;
     submitButton.setEnabled(!value);
     submitButton.setText(value ? "Guardando…" : "Crear paciente");
-  }
-
-  private String messageFor(ApiError.Type type, String message) {
-    switch (type) {
-      case UNAUTHORIZED:
-        return "Sesión vencida, volvé a ingresar";
-      case NETWORK:
-        return "No se pudo conectar";
-      case SERVER:
-        return "Error del servidor, intentá de nuevo";
-      case CLIENT:
-        return message != null && !message.isEmpty()
-            ? message : "No se pudo crear el paciente";
-      default:
-        return message != null && !message.isEmpty()
-            ? message : "No se pudo crear el paciente";
-    }
   }
 }

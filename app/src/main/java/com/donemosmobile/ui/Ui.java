@@ -37,6 +37,14 @@ public final class Ui {
     return params;
   }
 
+  public static LinearLayout.LayoutParams matchWrapBottom(Context context, int bottomMarginDp) {
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.bottomMargin = dp(context, bottomMarginDp);
+    return params;
+  }
+
   public static GradientDrawable rounded(Context context, int color, float radiusDp) {
     GradientDrawable drawable = new GradientDrawable();
     drawable.setColor(color);

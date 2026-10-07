@@ -1,21 +1,24 @@
 package com.donemosmobile.ui.pacientes;
 
 import android.os.Bundle;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.Ui;
+import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
-import com.donemosmobile.ui.components.SectionNavBar;
+import com.donemosmobile.ui.components.ScreenHeader;
+import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.components.StateView;
 import com.donemosmobile.ui.navigation.Section;
-import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
 
@@ -37,57 +40,29 @@ public class PacienteLookupActivity extends AppActivity {
     setContentView(buildView());
   }
 
-  private LinearLayout buildView() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(AppColors.BACKGROUND);
+  private View buildView() {
+    ScreenScaffold root = new ScreenScaffold(this, Section.PACIENTES);
+    root.setHeader(new ScreenHeader(this)
+        .title("Buscar paciente")
+        .subtitle("Ingresá el DNI para ver la ficha"));
 
-    TextView title = new TextView(this);
-    title.setText("Buscar paciente");
-    AppTypography.headline1(title);
-    title.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.LG, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-    root.addView(title);
-
-    TextView subtitle = new TextView(this);
-    subtitle.setText("Ingresá el DNI para ver la ficha");
-    AppTypography.caption(subtitle);
-    subtitle.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        0);
-    root.addView(subtitle);
-
-    LinearLayout form = new LinearLayout(this);
-    form.setOrientation(LinearLayout.VERTICAL);
-    form.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
+    LinearLayout content = root.content();
+    content.setPadding(
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.MD),
         0);
 
     dniInput = new AppInput(this, "DNI");
-    dniInput.getEditText().setInputType(
-        android.text.InputType.TYPE_CLASS_NUMBER);
-    form.addView(dniInput);
+    dniInput.getEditText().setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+    content.addView(dniInput, Ui.matchWrap(this));
 
-    com.donemosmobile.ui.components.AppButton searchButton =
-        new com.donemosmobile.ui.components.AppButton(
-            this, "Buscar", com.donemosmobile.ui.components.AppButton.Style.FILLED,
-            v -> search());
+    AppButton searchButton = new AppButton(this, "Buscar", AppButton.Style.FILLED, v -> search());
     LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
-        AppSpacing.dp(48, getResources()));
-    buttonParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
-    form.addView(searchButton, buttonParams);
-
-    LinearLayout content = new LinearLayout(this);
-    content.setOrientation(LinearLayout.VERTICAL);
-    content.addView(form);
+        Ui.dp(this, 48));
+    buttonParams.topMargin = Ui.dp(this, AppSpacing.MD);
+    content.addView(searchButton, buttonParams);
 
     state = new StateView(this);
     content.addView(state);
@@ -95,24 +70,11 @@ public class PacienteLookupActivity extends AppActivity {
     resultContainer = new LinearLayout(this);
     resultContainer.setOrientation(LinearLayout.VERTICAL);
     resultContainer.setPadding(
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.SM, getResources()),
-        AppSpacing.dp(AppSpacing.MD, getResources()),
-        AppSpacing.dp(AppSpacing.XL, getResources()));
+        0,
+        Ui.dp(this, AppSpacing.SM),
+        0,
+        Ui.dp(this, AppSpacing.XL));
     content.addView(resultContainer);
-
-    // Contenido scrolleable: deja la barra inferior siempre visible.
-    ScrollView scroller = new ScrollView(this);
-    scroller.setFillViewport(true);
-    scroller.addView(content, new ScrollView.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-    root.addView(scroller, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-
-    root.addView(new SectionNavBar(this, Section.PACIENTES), new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
 
     return root;
   }
@@ -153,7 +115,8 @@ public class PacienteLookupActivity extends AppActivity {
         if (cached != null) {
           return;
         }
-        state.showError(messageFor(type, message), PacienteLookupActivity.this::search);
+        state.showError(ApiMessages.forType(type, message, "No se pudo buscar"),
+            PacienteLookupActivity.this::search);
       }
     });
   }
@@ -169,8 +132,8 @@ public class PacienteLookupActivity extends AppActivity {
     AppTypography.headline2(name);
     content.addView(name);
 
-    addLine(content, "DNI", safe(paciente.dni));
-    addLine(content, "Teléfono", safe(paciente.telefono));
+    addLine(content, "DNI", Ui.safe(paciente.dni));
+    addLine(content, "Teléfono", Ui.safe(paciente.telefono));
     if (paciente.sexo != null && !paciente.sexo.isEmpty()) {
       addLine(content, "Sexo", paciente.sexo);
     }
@@ -186,27 +149,6 @@ public class PacienteLookupActivity extends AppActivity {
     TextView line = new TextView(this);
     line.setText(label + ": " + value);
     AppTypography.body(line);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
-    parent.addView(line, params);
-  }
-
-  private String safe(String value) {
-    return value != null && !value.isEmpty() ? value : "—";
-  }
-
-  private String messageFor(ApiError.Type type, String message) {
-    switch (type) {
-      case UNAUTHORIZED:
-        return "Sesión vencida, volvé a ingresar";
-      case NETWORK:
-        return "No se pudo conectar";
-      case SERVER:
-        return "Error del servidor, intentá de nuevo";
-      default:
-        return message != null && !message.isEmpty() ? message : "No se pudo buscar";
-    }
+    parent.addView(line, Ui.matchWrap(this, AppSpacing.XS));
   }
 }
