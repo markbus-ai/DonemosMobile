@@ -213,10 +213,8 @@ public class TurnosActivity extends AppActivity {
     details.setOrientation(LinearLayout.VERTICAL);
 
     TextView paciente = new TextView(this);
-    // El backend devuelve solo ids; mostramos el id hasta que la API exponga
-    // las relaciones. Se documenta como limitación mientras no haya embedding.
-    paciente.setText(turno.pacienteId != null
-        ? "Paciente #" + turno.pacienteId : "Paciente sin asignar");
+    // El backend embebe la relación; si no vino, el label cae al id.
+    paciente.setText(turno.pacienteLabel());
     AppTypography.bodyMedium(paciente);
     details.addView(paciente);
 
@@ -249,12 +247,7 @@ public class TurnosActivity extends AppActivity {
   }
 
   private String metaLine(TurnoDto turno) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("Sede #").append(turno.sedeId != null ? turno.sedeId : "—");
-    if (turno.tipoId != null) {
-      sb.append(" · Tipo #").append(turno.tipoId);
-    }
-    return sb.toString();
+    return turno.sedeLabel() + " · " + turno.tipoLabel();
   }
 
   private int estadoColor(String estado) {
