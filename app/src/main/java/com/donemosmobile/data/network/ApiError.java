@@ -8,6 +8,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import retrofit2.Response;
 
@@ -52,6 +55,33 @@ public final class ApiError {
       return Type.SERVER;
     }
     return Type.UNKNOWN;
+  }
+
+  /**
+   * Extrae los errores de validacion de Laravel ({@code errors:{campo:[...]}})
+   * como un mapa campo -> primer mensaje. Vacio si no vino envelope 422.
+   */
+  @NonNull
+  public static Map<String, String> fieldErrors(@NonNull Response<?> response) {
+    Map<String, String> result = new LinkedHashMap<>();
+    if (response.errorBody() == null) {
+      return result;
+    }
+    try {
+      ErrorResponse error = GSON.fromJson(response.errorBody().string(), ErrorResponse.class);
+      if (error == null || error.errors == null) {
+        return result;
+      }
+      for (Map.Entry<String, List<String>> entry : error.errors.entrySet()) {
+        List<String> messages = entry.getValue();
+        if (messages != null && !messages.isEmpty() && messages.get(0) != null) {
+          result.put(entry.getKey(), messages.get(0));
+        }
+      }
+    } catch (IOException | JsonSyntaxException e) {
+      // Envelope no parseable: no hay errores por campo.
+    }
+    return result;
   }
 
   /** Extrae {@code {"message": "..."}} del errorBody, o null si no se pudo. */

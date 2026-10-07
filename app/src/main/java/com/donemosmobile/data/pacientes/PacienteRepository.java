@@ -13,6 +13,8 @@ import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 
+import java.util.Map;
+
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -26,6 +28,14 @@ public class PacienteRepository {
   public interface Callback<T> {
     void onSuccess(@Nullable T data);
     void onError(@NonNull ApiError.Type type, @Nullable String message);
+
+    /**
+     * Errores de validacion por campo (Laravel 422): campo -> mensaje. Por
+     * defecto cae a {@link #onError} para que ninguna pantalla quede muda.
+     */
+    default void onValidationError(@NonNull Map<String, String> fieldErrors) {
+      onError(ApiError.Type.CLIENT, null);
+    }
   }
 
   private final PacienteApi api;
@@ -80,8 +90,20 @@ public class PacienteRepository {
       public void onResponse(@NonNull Call<PacienteDto> call,
           @NonNull Response<PacienteDto> response) {
         if (response.isSuccessful() && response.body() != null) {
+          // Deja la ficha fresca para que la busqueda por DNI sea instantanea.
+          if (response.body().dni != null) {
+            DataCache.getInstance().put(cacheKey(response.body().dni), response.body());
+          }
           callback.onSuccess(response.body());
           return;
+        }
+        // 422: errores por campo para que la pantalla los pinte inline.
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
+          Map<String, String> fields = ApiError.fieldErrors(response);
+          if (!fields.isEmpty()) {
+            callback.onValidationError(fields);
+            return;
+          }
         }
         handleError(response, callback);
       }
