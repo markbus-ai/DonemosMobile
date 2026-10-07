@@ -12,6 +12,7 @@ import com.donemosmobile.ui.home.Home;
 public class DonemosMobileActivity extends AppActivity {
 
   private AuthRepository repository;
+  private Home home;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -29,8 +30,19 @@ public class DonemosMobileActivity extends AppActivity {
     // asi las primeras pantallas levantan datos del cache al instante.
     Prefetcher.warmUp(this);
 
-    setContentView(new Home(this));
+    home = new Home(this);
+    setContentView(home);
     validateSession();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    // Al volver a la Home (incluido CLEAR_TOP desde otra sección) refrescamos
+    // la actividad reciente para que refleje los turnos reales del día.
+    if (home != null) {
+      home.refreshRecent();
+    }
   }
 
   /**

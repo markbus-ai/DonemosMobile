@@ -11,6 +11,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.data.network.dto.TurnoDto;
+import com.donemosmobile.data.turnos.TurnoRepository;
 import com.donemosmobile.ui.aptitud.AptitudActivity;
 import com.donemosmobile.ui.donaciones.DonacionesActivity;
 import com.donemosmobile.ui.pacientes.PacienteLookupActivity;
@@ -20,12 +23,24 @@ import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
 import com.donemosmobile.ui.turnos.TurnosActivity;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class HomeContent extends LinearLayout {
 
+  private static final int RECENT_LIMIT = 5;
+
+  private final Context context;
+  private final TurnoRepository turnoRepository;
+  private LinearLayout recentContainer;
+
   public HomeContent(Context context) {
     super(context);
+    this.context = context;
+    this.turnoRepository = new TurnoRepository(context);
 
     setOrientation(VERTICAL);
 
@@ -128,15 +143,144 @@ public class HomeContent extends LinearLayout {
         0);
     addView(recent);
 
-    TextView empty = new TextView(context);
-    empty.setText("Sin actividad registrada hoy");
-    AppTypography.caption(empty);
-    empty.setPadding(
+    recentContainer = new LinearLayout(context);
+    recentContainer.setOrientation(VERTICAL);
+    recentContainer.setPadding(
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.SM, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.XXL, getResources()));
-    addView(empty);
+    addView(recentContainer);
+  }
+
+  /** Relee los turnos de hoy y pinta la actividad reciente con datos reales. */
+  public void refreshRecent() {
+    if (recentContainer == null) {
+      return;
+    }
+    final String hoy = hoy();
+    List<TurnoDto> cached = turnoRepository.getCachedList(hoy, null);
+    if (cached != null && !cached.isEmpty()) {
+      renderRecent(cached);
+    } else {
+      renderRecentState("Buscando turnos de hoy…");
+    }
+
+    turnoRepository.list(hoy, null, new TurnoRepository.Callback<List<TurnoDto>>() {
+      @Override
+      public void onSuccess(List<TurnoDto> data) {
+        renderRecent(data);
+      }
+
+      @Override
+      public void onError(ApiError.Type type, String message) {
+        // Con cache en pantalla no la pisamos; si no hay nada, estado honesto.
+        if (turnoRepository.getCachedList(hoy, null) == null) {
+          renderRecentState(messageFor(type, message));
+        }
+      }
+    });
+  }
+
+  private void renderRecent(List<TurnoDto> turnos) {
+    if (recentContainer == null) {
+      return;
+    }
+    recentContainer.removeAllViews();
+    if (turnos == null || turnos.isEmpty()) {
+      addRecentText("Sin actividad registrada hoy");
+      return;
+    }
+    int shown = 0;
+    for (TurnoDto turno : turnos) {
+      if (shown >= RECENT_LIMIT) {
+        break;
+      }
+      recentContainer.addView(buildRecentRow(turno));
+      shown++;
+    }
+  }
+
+  private void renderRecentState(String text) {
+    if (recentContainer == null) {
+      return;
+    }
+    recentContainer.removeAllViews();
+    addRecentText(text);
+  }
+
+  private void addRecentText(String text) {
+    TextView empty = new TextView(context);
+    empty.setText(text);
+    AppTypography.caption(empty);
+    recentContainer.addView(empty);
+  }
+
+  private LinearLayout buildRecentRow(TurnoDto turno) {
+    LinearLayout row = new LinearLayout(context);
+    row.setOrientation(HORIZONTAL);
+    row.setGravity(Gravity.CENTER_VERTICAL);
+    row.setPadding(0, AppSpacing.dp(AppSpacing.SM, getResources()), 0,
+        AppSpacing.dp(AppSpacing.SM, getResources()));
+
+    TextView hora = new TextView(context);
+    hora.setText(turno.horaCorta());
+    hora.setTextSize(15);
+    hora.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+    hora.setTextColor(AppColors.TEXT_PRIMARY);
+    row.addView(hora, new LinearLayout.LayoutParams(
+        AppSpacing.dp(56, getResources()), ViewGroup.LayoutParams.WRAP_CONTENT));
+
+    TextView label = new TextView(context);
+    label.setText(turno.pacienteLabel());
+    label.setTextSize(14);
+    label.setTextColor(AppColors.TEXT_PRIMARY);
+    label.setMaxLines(1);
+    label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    row.addView(label, new LinearLayout.LayoutParams(
+        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+    TextView estado = new TextView(context);
+    estado.setText(turno.estado != null ? turno.estado : "");
+    estado.setTextSize(12);
+    estado.setTextColor(estadoColor(turno.estado));
+    row.addView(estado);
+
+    return row;
+  }
+
+  private int estadoColor(String estado) {
+    if (estado == null) {
+      return AppColors.TEXT_SECONDARY;
+    }
+    switch (estado) {
+      case "ATENDIDO":
+        return AppColors.SUCCESS;
+      case "CANCELADO":
+        return AppColors.ERROR;
+      case "PENDIENTE":
+        return AppColors.WARNING;
+      default:
+        return AppColors.TEXT_SECONDARY;
+    }
+  }
+
+  private String messageFor(ApiError.Type type, String message) {
+    switch (type) {
+      case UNAUTHORIZED:
+        return "Sesión vencida, volvé a ingresar";
+      case NETWORK:
+        return "No se pudieron cargar los turnos de hoy";
+      case SERVER:
+        return "Error del servidor al cargar la actividad";
+      default:
+        return message != null && !message.isEmpty()
+            ? message : "No se pudo cargar la actividad";
+    }
+  }
+
+  private String hoy() {
+    return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
   }
 
   private String greetingForNow() {

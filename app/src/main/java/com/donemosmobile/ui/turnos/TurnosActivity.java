@@ -56,10 +56,14 @@ public class TurnosActivity extends AppActivity {
   private LinearLayout createPanel;
 
   // Formulario de alta.
+  private AppInput dniInput;
   private PacienteDto selectedPaciente;
   private TextView pacienteValue;
   private TextView dateValue;
   private TextView timeValue;
+  private TextView pacienteError;
+  private TextView fechaError;
+  private TextView horaError;
   private String selectedFecha;
   private String selectedHora;
 
@@ -335,7 +339,7 @@ public class TurnosActivity extends AppActivity {
     helpParams.bottomMargin = AppSpacing.dp(AppSpacing.SM, getResources());
     root.addView(help, helpParams);
 
-    final AppInput dniInput = new AppInput(this, "DNI del paciente");
+    dniInput = new AppInput(this, "DNI del paciente");
     dniInput.getEditText().setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
     root.addView(dniInput);
 
@@ -351,30 +355,20 @@ public class TurnosActivity extends AppActivity {
     pacienteValue.setText("Sin paciente seleccionado");
     pacienteValue.setTextSize(15);
     pacienteValue.setTextColor(AppColors.TEXT_SECONDARY);
-    LinearLayout patientField = makeField("Paciente", pacienteValue);
-    LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        AppSpacing.dp(64, getResources()));
-    fieldParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(patientField, fieldParams);
+    pacienteError = makeErrorText();
+    addFieldBlock(root, makeField("Paciente", pacienteValue), pacienteError);
 
     dateValue = new TextView(this);
     LinearLayout dateField = makeField("Fecha", dateValue);
     dateField.setOnClickListener(v -> showDatePicker());
-    LinearLayout.LayoutParams dateParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        AppSpacing.dp(64, getResources()));
-    dateParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(dateField, dateParams);
+    fechaError = makeErrorText();
+    addFieldBlock(root, dateField, fechaError);
 
     timeValue = new TextView(this);
     LinearLayout timeField = makeField("Hora", timeValue);
     timeField.setOnClickListener(v -> showTimePicker());
-    LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        AppSpacing.dp(64, getResources()));
-    timeParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
-    root.addView(timeField, timeParams);
+    horaError = makeErrorText();
+    addFieldBlock(root, timeField, horaError);
 
     AppButton confirmar = new AppButton(this, "Confirmar turno", AppButton.Style.FILLED,
         v -> confirmar());
@@ -392,8 +386,10 @@ public class TurnosActivity extends AppActivity {
   }
 
   private void buscarPaciente(String dni) {
+    dniInput.setError(null);
     if (dni.isEmpty()) {
-      Toast.makeText(this, "Ingresá el DNI", Toast.LENGTH_SHORT).show();
+      // Validación inline bajo el campo, no un Toast.
+      dniInput.setError("Ingresá el DNI");
       return;
     }
     pacienteRepository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
@@ -401,14 +397,14 @@ public class TurnosActivity extends AppActivity {
       public void onSuccess(PacienteDto data) {
         selectedPaciente = data;
         updatePacienteLabel(data.displayName());
-        Toast.makeText(TurnosActivity.this, "Paciente encontrado", Toast.LENGTH_SHORT).show();
+        hideError(pacienteError);
       }
 
       @Override
       public void onError(ApiError.Type type, String message) {
         selectedPaciente = null;
         updatePacienteLabel("Sin paciente seleccionado");
-        Toast.makeText(TurnosActivity.this, messageFor(type, message), Toast.LENGTH_SHORT).show();
+        showError(pacienteError, messageFor(type, message));
       }
     });
   }
@@ -423,12 +419,23 @@ public class TurnosActivity extends AppActivity {
   }
 
   private void confirmar() {
+    clearErrors();
+
+    // Validación inline: cada error queda debajo de su campo, no en un Toast.
+    boolean valid = true;
     if (selectedPaciente == null || selectedPaciente.id == null) {
-      Toast.makeText(this, "Seleccioná un paciente", Toast.LENGTH_SHORT).show();
-      return;
+      showError(pacienteError, "Seleccioná un paciente");
+      valid = false;
     }
-    if (selectedFecha == null || selectedHora == null) {
-      Toast.makeText(this, "Falta elegir fecha y hora", Toast.LENGTH_SHORT).show();
+    if (selectedFecha == null) {
+      showError(fechaError, "Elegí la fecha del turno");
+      valid = false;
+    }
+    if (selectedHora == null) {
+      showError(horaError, "Elegí la hora del turno");
+      valid = false;
+    }
+    if (!valid) {
       return;
     }
 
@@ -465,6 +472,7 @@ public class TurnosActivity extends AppActivity {
       fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
       dateValue.setText(fmt.format(new Date(selection)));
       dateValue.setTextColor(AppColors.TEXT_PRIMARY);
+      hideError(fechaError);
 
       SimpleDateFormat api = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
       api.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -481,6 +489,7 @@ public class TurnosActivity extends AppActivity {
           selectedHora = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
           timeValue.setText(selectedHora);
           timeValue.setTextColor(AppColors.TEXT_PRIMARY);
+          hideError(horaError);
         },
         now.get(Calendar.HOUR_OF_DAY),
         now.get(Calendar.MINUTE),
@@ -513,6 +522,60 @@ public class TurnosActivity extends AppActivity {
     field.addView(value);
 
     return field;
+  }
+
+  /** TextView de error de campo, oculto hasta que haga falta. */
+  private TextView makeErrorText() {
+    TextView error = new TextView(this);
+    error.setTextSize(13);
+    error.setTextColor(AppColors.ERROR);
+    error.setVisibility(View.GONE);
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
+    params.leftMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    error.setLayoutParams(params);
+    return error;
+  }
+
+  /** Apila un campo de 64dp con su mensaje de error debajo. */
+  private void addFieldBlock(LinearLayout root, LinearLayout field, TextView error) {
+    LinearLayout column = new LinearLayout(this);
+    column.setOrientation(LinearLayout.VERTICAL);
+    column.addView(field, new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        AppSpacing.dp(64, getResources())));
+    column.addView(error);
+
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    root.addView(column, params);
+  }
+
+  private void showError(TextView error, String message) {
+    if (error == null) {
+      return;
+    }
+    error.setText(message);
+    error.setVisibility(View.VISIBLE);
+  }
+
+  private void hideError(TextView error) {
+    if (error != null) {
+      error.setVisibility(View.GONE);
+    }
+  }
+
+  private void clearErrors() {
+    if (dniInput != null) {
+      dniInput.setError(null);
+    }
+    hideError(pacienteError);
+    hideError(fechaError);
+    hideError(horaError);
   }
 
   private android.graphics.drawable.GradientDrawable rounded(int color, float radiusDp) {

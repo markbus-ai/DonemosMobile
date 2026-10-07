@@ -11,6 +11,8 @@ import com.donemosmobile.ui.theme.AppColors;
 
 public class Home extends LinearLayout {
 
+  private final HomeContent content;
+
   public Home(Context context) {
     super(context);
 
@@ -18,7 +20,7 @@ public class Home extends LinearLayout {
     setBackgroundColor(AppColors.BACKGROUND);
 
     HomeHeader header = new HomeHeader(context);
-    HomeContent content = new HomeContent(context);
+    content = new HomeContent(context);
 
     addView(header, new LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -40,5 +42,10 @@ public class Home extends LinearLayout {
     addView(new SectionNavBar(context, Section.HOME), new LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
+  }
+
+  /** Relee la actividad reciente; la Home la llama al volver al frente. */
+  public void refreshRecent() {
+    content.refreshRecent();
   }
 }
