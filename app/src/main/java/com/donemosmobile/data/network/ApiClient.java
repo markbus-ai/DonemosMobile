@@ -25,6 +25,7 @@ public final class ApiClient {
   private final AuthApi authApi;
   private final PacienteApi pacienteApi;
   private final TurnoApi turnoApi;
+  private final CatalogoApi catalogoApi;
   private final TokenStore tokenStore;
 
   private ApiClient(Context context) {
@@ -53,6 +54,7 @@ public final class ApiClient {
     this.authApi = retrofit.create(AuthApi.class);
     this.pacienteApi = retrofit.create(PacienteApi.class);
     this.turnoApi = retrofit.create(TurnoApi.class);
+    this.catalogoApi = retrofit.create(CatalogoApi.class);
   }
 
   public static ApiClient get(Context context) {
@@ -79,6 +81,10 @@ public final class ApiClient {
 
   public TurnoApi turnos() {
     return turnoApi;
+  }
+
+  public CatalogoApi catalogo() {
+    return catalogoApi;
   }
 
   public TokenStore tokenStore() {

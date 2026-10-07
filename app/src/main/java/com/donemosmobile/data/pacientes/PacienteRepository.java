@@ -12,6 +12,7 @@ import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
+import com.donemosmobile.data.network.dto.PacientePageDto;
 
 import java.util.Map;
 
@@ -77,6 +78,41 @@ public class PacienteRepository {
   public PacienteDto getCachedByDni(String dni) {
     Object value = DataCache.getInstance().get(cacheKey(dni));
     return value instanceof PacienteDto ? (PacienteDto) value : null;
+  }
+
+  /**
+   * Busca por DNI con la relacion {@code aptitud} embebida. El detalle
+   * ({@code GET /api/pacientes/{dni}}) devuelve el modelo crudo, solo
+   * {@code aptitud_id}; el listado con {@code search=DNI} trae el tipo real,
+   * que es lo que la pantalla de aptitud necesita mostrar.
+   */
+  public void findByDniWithAptitud(String dni, final Callback<PacienteDto> callback) {
+    final String key = cacheKey(dni);
+    api.index(dni, 50).enqueue(new retrofit2.Callback<PacientePageDto>() {
+      @Override
+      public void onResponse(@NonNull Call<PacientePageDto> call,
+          @NonNull Response<PacientePageDto> response) {
+        if (response.isSuccessful() && response.body() != null
+            && response.body().data != null) {
+          for (PacienteDto paciente : response.body().data) {
+            if (dni.equals(paciente.dni)) {
+              DataCache.getInstance().put(key, paciente);
+              callback.onSuccess(paciente);
+              return;
+            }
+          }
+          // No vino coincidencia exacta: el paciente no existe.
+          callback.onError(ApiError.Type.NOT_FOUND, null);
+          return;
+        }
+        handleError(response, callback);
+      }
+
+      @Override
+      public void onFailure(@NonNull Call<PacientePageDto> call, @NonNull Throwable t) {
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+      }
+    });
   }
 
   private String cacheKey(String dni) {

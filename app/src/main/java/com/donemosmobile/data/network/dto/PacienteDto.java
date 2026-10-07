@@ -32,6 +32,14 @@ public class PacienteDto {
   @SerializedName("aptitud_id")
   public Long aptitudId;
 
+  /**
+   * Relacion embebida solo en la respuesta de PATCH aptitud (y del listado).
+   * El endpoint {@code GET /api/pacientes/{dni}} devuelve el modelo crudo y no
+   * la incluye, por eso queda {@code null} tras un lookup comun.
+   */
+  @SerializedName("aptitud")
+  public AptitudDto aptitud;
+
   /** Nombre listo para mostrar, con fallback al DNI. */
   public String displayName() {
     String first = nombre != null ? nombre : "";
