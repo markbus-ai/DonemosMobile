@@ -111,7 +111,7 @@ public class HomeContent extends LinearLayout {
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         0);
-    row1.addView(makeTile(context, "Registrar donación", false,
+    row1.addView(makeTile(context, "Registrar donación", true,
         v -> navigate(context, DonacionesActivity.class)), gridParams());
     row1.addView(spacer());
     row1.addView(makeTile(context, "Nuevo turno", true,

@@ -7,15 +7,19 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.catalogo.CatalogoRepository;
 import com.donemosmobile.data.donaciones.DonacionRepository;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.data.network.dto.AutoexclusionDto;
 import com.donemosmobile.data.network.dto.CreateDonacionRequest;
 import com.donemosmobile.data.network.dto.DonacionDto;
 import com.donemosmobile.data.network.dto.DonacionWarningResponse;
@@ -40,8 +44,9 @@ import java.util.Map;
 /**
  * Registro de una donacion. Una sola pantalla, en pasos: paciente por DNI ->
  * tipo de donacion -> componentes (cantidad) -> signos clinicos -> datos de la
- * bolsa -> CONFIRMAR. Valida inline, muestra los errores 422 por campo y los
- * warnings de reglas de negocio (409).
+ * bolsa -> CONFIRMAR. Valida inline, muestra los errores 422 por campo. Ante un
+ * 409 deja forzar con autorizacion auditada; al confirmar (201) muestra el
+ * numero de donacion y permite marcar la autoexclusion confidencial.
  *
  * <p>La seccion Donaciones y el tile "Registrar donacion" de la Home apuntan
  * aca: una sola implementacion para ambos puntos de entrada.
@@ -102,9 +107,12 @@ public class DonacionesActivity extends AppActivity {
 
   private LinearLayout warningPanel;
   private LinearLayout warningList;
+  private AppButton forzarButton;
 
   private LinearLayout successPanel;
   private TextView successNumber;
+  private TextView successNote;
+  private AppButton autoexclusionButton;
   private AppButton anotherButton;
 
   private List<TipoDonacionDto> tipos;
@@ -114,6 +122,7 @@ public class DonacionesActivity extends AppActivity {
   private String selectedTipoBolsa = "doble";
   private String selectedBrazo = "izquierdo";
   private boolean submitting;
+  private boolean autoexclusionRegistered;
   private DonacionDto createdDonacion;
 
   @Override
@@ -627,6 +636,23 @@ public class DonacionesActivity extends AppActivity {
     warningList.setOrientation(LinearLayout.VERTICAL);
     warningPanel.addView(warningList);
 
+    TextView warningNote = new TextView(this);
+    warningNote.setText("Forzar deja registrada una autorización extraordinaria "
+        + "auditada con tu usuario para este donante.");
+    warningNote.setTextSize(12);
+    warningNote.setTextColor(AppColors.TEXT_SECONDARY);
+    LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    noteParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    warningPanel.addView(warningNote, noteParams);
+
+    forzarButton = new AppButton(this, "Forzar con autorización", AppButton.Style.FILLED,
+        v -> submit(true));
+    LinearLayout.LayoutParams forzarParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(48, getResources()));
+    forzarParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    warningPanel.addView(forzarButton, forzarParams);
+
     LinearLayout.LayoutParams warningParams = new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     warningParams.topMargin = AppSpacing.dp(AppSpacing.MD, getResources());
@@ -656,6 +682,19 @@ public class DonacionesActivity extends AppActivity {
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     numberParams.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());
     successPanel.addView(successNumber, numberParams);
+
+    successNote = new TextView(this);
+    successNote.setTextSize(13);
+    successNote.setTextColor(AppColors.SUCCESS);
+    successNote.setVisibility(View.GONE);
+    successPanel.addView(successNote);
+
+    autoexclusionButton = new AppButton(this, "Marcar autoexclusión",
+        AppButton.Style.OUTLINED, v -> promptAutoexclusion());
+    LinearLayout.LayoutParams autoParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, AppSpacing.dp(48, getResources()));
+    autoParams.topMargin = AppSpacing.dp(AppSpacing.SM, getResources());
+    successPanel.addView(autoexclusionButton, autoParams);
 
     anotherButton = new AppButton(this, "Registrar otra donación",
         AppButton.Style.TEXT, v -> resetAll());
@@ -849,13 +888,64 @@ public class DonacionesActivity extends AppActivity {
   }
 
   private void showSuccess(DonacionDto donacion) {
+    autoexclusionRegistered = false;
     String numero = donacion != null && donacion.numeroDonacion != null
         ? donacion.numeroDonacion : "—";
     successNumber.setText("Nº " + numero);
+    successNote.setVisibility(View.GONE);
+    autoexclusionButton.setEnabled(true);
+    autoexclusionButton.setVisibility(View.VISIBLE);
     successPanel.setVisibility(View.VISIBLE);
     submitButton.setVisibility(View.GONE);
     hideWarning();
     Toast.makeText(this, "Donación registrada", Toast.LENGTH_SHORT).show();
+  }
+
+  private void promptAutoexclusion() {
+    if (createdDonacion == null || createdDonacion.numeroDonacion == null) {
+      return;
+    }
+    final EditText motivo = new EditText(this);
+    motivo.setHint("Motivo (opcional)");
+    motivo.setInputType(InputType.TYPE_CLASS_TEXT);
+    new AlertDialog.Builder(this)
+        .setTitle("Marcar autoexclusión")
+        .setMessage("Registro confidencial del donante. No se guarda su identidad.")
+        .setView(motivo)
+        .setNegativeButton("Cancelar", null)
+        .setPositiveButton("Confirmar", (dialog, which) ->
+            registerAutoexclusion(motivo.getText().toString()))
+        .show();
+  }
+
+  private void registerAutoexclusion(String motivo) {
+    if (autoexclusionRegistered) {
+      return;
+    }
+    autoexclusionButton.setEnabled(false);
+    donacionRepository.marcarAutoexclusion(createdDonacion.numeroDonacion, motivo,
+        new DonacionRepository.Callback<AutoexclusionDto>() {
+          @Override
+          public void onSuccess(AutoexclusionDto data) {
+            autoexclusionRegistered = true;
+            successNote.setText("Autoexclusión registrada y confidencial.");
+            successNote.setVisibility(View.VISIBLE);
+            Toast.makeText(DonacionesActivity.this, "Autoexclusión registrada",
+                Toast.LENGTH_SHORT).show();
+          }
+
+          @Override
+          public void onValidationError(Map<String, String> fieldErrors) {
+            autoexclusionButton.setEnabled(true);
+            showError(formError, "La donación ya tiene una autoexclusión registrada");
+          }
+
+          @Override
+          public void onError(ApiError.Type type, String message) {
+            autoexclusionButton.setEnabled(true);
+            showError(formError, messageFor(type, message));
+          }
+        });
   }
 
   // --- Reset y helpers ---
@@ -866,6 +956,7 @@ public class DonacionesActivity extends AppActivity {
     selectedPaciente = null;
     selectedTipo = null;
     createdDonacion = null;
+    autoexclusionRegistered = false;
     cantidades.clear();
     selectedTipoBolsa = "doble";
     selectedBrazo = "izquierdo";
@@ -921,6 +1012,10 @@ public class DonacionesActivity extends AppActivity {
     if (submitButton != null) {
       submitButton.setEnabled(!value);
       submitButton.setText(value ? "Guardando…" : "CONFIRMAR");
+    }
+    if (forzarButton != null) {
+      forzarButton.setEnabled(!value);
+      forzarButton.setText(value ? "Guardando…" : "Forzar con autorización");
     }
   }
 
