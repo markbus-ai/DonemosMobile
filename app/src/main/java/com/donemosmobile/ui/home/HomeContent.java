@@ -3,7 +3,6 @@ package com.donemosmobile.ui.home;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +13,8 @@ import android.widget.TextView;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.data.turnos.TurnoRepository;
+import com.donemosmobile.ui.TurnoLabels;
+import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.aptitud.AptitudActivity;
 import com.donemosmobile.ui.donaciones.DonacionesActivity;
 import com.donemosmobile.ui.pacientes.PacienteLookupActivity;
@@ -70,7 +71,7 @@ public class HomeContent extends LinearLayout {
     searchPill.setPadding(
         AppSpacing.dp(AppSpacing.MD, getResources()), 0,
         AppSpacing.dp(AppSpacing.MD, getResources()), 0);
-    searchPill.setBackground(rounded(AppColors.SURFACE, 28));
+    searchPill.setBackground(Ui.rounded(context, AppColors.SURFACE, 28));
     searchPill.addView(search, new LayoutParams(
         0, AppSpacing.dp(44, getResources()), 1));
 
@@ -243,26 +244,10 @@ public class HomeContent extends LinearLayout {
     TextView estado = new TextView(context);
     estado.setText(turno.estado != null ? turno.estado : "");
     estado.setTextSize(12);
-    estado.setTextColor(estadoColor(turno.estado));
+    estado.setTextColor(TurnoLabels.estadoColor(turno.estado));
     row.addView(estado);
 
     return row;
-  }
-
-  private int estadoColor(String estado) {
-    if (estado == null) {
-      return AppColors.TEXT_SECONDARY;
-    }
-    switch (estado) {
-      case "ATENDIDO":
-        return AppColors.SUCCESS;
-      case "CANCELADO":
-        return AppColors.ERROR;
-      case "PENDIENTE":
-        return AppColors.WARNING;
-      default:
-        return AppColors.TEXT_SECONDARY;
-    }
   }
 
   private String messageFor(ApiError.Type type, String message) {
@@ -311,7 +296,7 @@ public class HomeContent extends LinearLayout {
     LinearLayout tile = new LinearLayout(context);
     tile.setOrientation(VERTICAL);
     tile.setGravity(Gravity.CENTER);
-    tile.setBackground(rounded(enabled ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 16));
+    tile.setBackground(Ui.rounded(context, enabled ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 16));
     tile.setClickable(true);
     tile.setFocusable(true);
     tile.setOnClickListener(listener);
@@ -340,13 +325,6 @@ public class HomeContent extends LinearLayout {
         AppSpacing.dp(88, getResources())));
 
     return tile;
-  }
-
-  private GradientDrawable rounded(int color, float radiusDp) {
-    GradientDrawable drawable = new GradientDrawable();
-    drawable.setColor(color);
-    drawable.setCornerRadius(AppSpacing.dp((int) radiusDp, getResources()));
-    return drawable;
   }
 
   private void navigate(Context context, Class<?> activityClass) {

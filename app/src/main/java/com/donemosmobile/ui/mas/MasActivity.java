@@ -1,6 +1,7 @@
 package com.donemosmobile.ui.mas;
 
 import android.os.Bundle;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -8,12 +9,14 @@ import android.widget.TextView;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.local.SessionStore;
 import com.donemosmobile.data.network.dto.UserDto;
+import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.auth.SessionActions;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
-import com.donemosmobile.ui.components.SectionNavBar;
+import com.donemosmobile.ui.components.FormActions;
+import com.donemosmobile.ui.components.ScreenHeader;
+import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.navigation.Section;
-import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
 
@@ -30,33 +33,23 @@ public class MasActivity extends AppActivity {
     setContentView(buildView());
   }
 
-  private LinearLayout buildView() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setBackgroundColor(AppColors.BACKGROUND);
+  private View buildView() {
+    ScreenScaffold root = new ScreenScaffold(this, Section.MAS, false);
+    root.setHeader(new ScreenHeader(this).title("Más"));
 
-    TextView title = new TextView(this);
-    title.setText("Más");
-    AppTypography.headline1(title);
-    title.setPadding(dp(AppSpacing.MD), dp(AppSpacing.LG), dp(AppSpacing.MD), 0);
-    root.addView(title);
-
-    LinearLayout content = new LinearLayout(this);
-    content.setOrientation(LinearLayout.VERTICAL);
-    content.setPadding(dp(AppSpacing.MD), dp(AppSpacing.MD), dp(AppSpacing.MD), 0);
+    LinearLayout content = root.content();
+    content.setPadding(
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.MD),
+        Ui.dp(this, AppSpacing.MD),
+        0);
 
     content.addView(buildUserCard());
 
-    AppButton logout = new AppButton(this, "Cerrar sesión", AppButton.Style.FILLED,
-        v -> SessionActions.logout(MasActivity.this));
-    LinearLayout.LayoutParams logoutParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-    logoutParams.topMargin = dp(AppSpacing.MD);
-    content.addView(logout, logoutParams);
-
-    root.addView(content, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-    root.addView(new SectionNavBar(this, Section.MAS));
+    FormActions actions = new FormActions(this);
+    actions.add("Cerrar sesión", AppButton.Style.FILLED,
+        v -> SessionActions.logout(MasActivity.this), 48, AppSpacing.MD);
+    content.addView(actions);
 
     return root;
   }
@@ -71,10 +64,7 @@ public class MasActivity extends AppActivity {
       TextView name = new TextView(this);
       name.setText(user.displayName());
       AppTypography.headline2(name);
-      LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
-          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-      nameParams.bottomMargin = dp(AppSpacing.SM);
-      column.addView(name, nameParams);
+      column.addView(name, Ui.matchWrapBottom(this, AppSpacing.SM));
     }
 
     addLine(column, "Usuario", user != null ? user.username : null);
@@ -85,10 +75,7 @@ public class MasActivity extends AppActivity {
       TextView hint = new TextView(this);
       hint.setText("No hay datos de sesión en este dispositivo. Podés cerrar sesión y volver a ingresar.");
       AppTypography.caption(hint);
-      LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
-          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-      hintParams.topMargin = dp(AppSpacing.SM);
-      column.addView(hint, hintParams);
+      column.addView(hint, Ui.matchWrap(this, AppSpacing.SM));
     }
 
     return new AppCard(this, column);
@@ -96,16 +83,8 @@ public class MasActivity extends AppActivity {
 
   private void addLine(LinearLayout parent, String label, String value) {
     TextView line = new TextView(this);
-    line.setText(label + ": " + safe(value));
+    line.setText(label + ": " + Ui.safe(value));
     AppTypography.body(line);
     parent.addView(line);
-  }
-
-  private String safe(String value) {
-    return value != null && !value.isEmpty() ? value : "—";
-  }
-
-  private int dp(int value) {
-    return AppSpacing.dp(value, getResources());
   }
 }
