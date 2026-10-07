@@ -2,6 +2,8 @@ package com.donemosmobile.data.network.dto;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.Locale;
+
 /**
  * Fila del catalogo {@code GET /api/tipos-donacion}. Se usa para elegir el tipo
  * de la donacion y, a la vez, como catalogo de componentes (SANGRE, PLASMA,
@@ -35,6 +37,6 @@ public class TipoDonacionDto {
 
   /** Codigo en mayusculas, o cadena vacia; estable para comparar reglas. */
   public String codigoUpper() {
-    return codigo != null ? codigo.toUpperCase() : "";
+    return codigo != null ? codigo.toUpperCase(Locale.ROOT) : "";
   }
 }
