@@ -46,10 +46,17 @@ public class ScreenHeader extends LinearLayout {
   }
 
   public ScreenHeader subtitle(String text) {
+    return subtitle(text, 0);
+  }
+
+  public ScreenHeader subtitle(String text, int topMarginDp) {
     TextView subtitle = new TextView(getContext());
     subtitle.setText(text);
     AppTypography.caption(subtitle);
-    titles.addView(subtitle);
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.topMargin = AppSpacing.dp(topMarginDp, getResources());
+    titles.addView(subtitle, params);
     return this;
   }
 

@@ -4,7 +4,8 @@ import android.content.Context;
 import android.util.TypedValue;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+
+import androidx.appcompat.widget.AppCompatTextView;
 
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -14,7 +15,7 @@ import com.donemosmobile.ui.theme.AppSpacing;
  * {@code makeErrorText}/{@code showError}/{@code hideError} repetido en cada
  * pantalla.
  */
-public class ErrorText extends TextView {
+public class ErrorText extends AppCompatTextView {
 
   public ErrorText(Context context) {
     super(context);

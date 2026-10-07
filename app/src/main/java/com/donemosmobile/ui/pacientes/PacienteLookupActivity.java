@@ -44,7 +44,7 @@ public class PacienteLookupActivity extends AppActivity {
     ScreenScaffold root = new ScreenScaffold(this, Section.PACIENTES);
     root.setHeader(new ScreenHeader(this)
         .title("Buscar paciente")
-        .subtitle("Ingresá el DNI para ver la ficha"));
+        .subtitle("Ingresá el DNI para ver la ficha", AppSpacing.SM));
 
     LinearLayout content = root.content();
     content.setPadding(
