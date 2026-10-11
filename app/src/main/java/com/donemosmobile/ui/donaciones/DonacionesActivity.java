@@ -51,9 +51,13 @@ import java.util.Map;
 /**
  * Registro de una donacion. Una sola pantalla, en pasos: paciente por DNI ->
  * tipo de donacion -> componentes (cantidad) -> signos clinicos -> datos de la
- * bolsa -> CONFIRMAR. Valida inline, muestra los errores 422 por campo. Ante un
- * 409 deja forzar con autorizacion auditada; al confirmar (201) muestra el
- * numero de donacion y permite marcar la autoexclusion confidencial.
+ * bolsa -> ciclo manual (opcional) -> CONFIRMAR. Valida inline, muestra los
+ * errores 422 por campo. Ante un 409 deja forzar con autorizacion auditada; al
+ * confirmar (201) muestra el numero de donacion y permite marcar la
+ * autoexclusion confidencial.
+ *
+ * <p>Los campos ciclo / serie / donacion son manuales y opcionales: los carga
+ * el personal y el sistema no los calcula.
  *
  * <p>La seccion Donaciones y el tile "Registrar donacion" de la Home apuntan
  * aca: una sola implementacion para ambos puntos de entrada.
@@ -105,6 +109,11 @@ public class DonacionesActivity extends AppActivity {
   private AppInput dificultadInput;
   private CheckBox dobleEtiquetaCheck;
   private ErrorText bagError;
+
+  private AppInput cicloInput;
+  private AppInput serieInput;
+  private AppInput donacionInput;
+  private ErrorText cycleError;
 
   private AppButton submitButton;
   private ErrorText formError;
@@ -160,6 +169,7 @@ public class DonacionesActivity extends AppActivity {
     buildComponentesSection(content);
     buildClinicalSection(content);
     buildBagSection(content);
+    buildCicloSection(content);
     buildActions(content);
 
     return root;
@@ -498,7 +508,27 @@ public class DonacionesActivity extends AppActivity {
     }
   }
 
-  // --- Paso 6: confirmar + paneles de resultado ---
+  // --- Paso 6: ciclo manual (opcional) ---
+
+  private void buildCicloSection(LinearLayout root) {
+    Ui.sectionTitle(root, this, "Ciclo de donaciones", AppSpacing.LG);
+
+    TextView helper = new TextView(this);
+    helper.setText("Carga manual y opcional: ciclo > serie > donación. "
+        + "Los decidís vos; el sistema no los calcula. Dejá los campos vacíos si no aplican.");
+    AppTypography.caption(helper);
+    root.addView(helper);
+
+    cicloInput = Ui.addInput(root, this, "Ciclo", Ui.wholeNumber(), AppSpacing.SM);
+    serieInput = Ui.addInput(root, this, "Serie", Ui.wholeNumber(), AppSpacing.SM);
+    donacionInput = Ui.addInput(root, this, "Donación (orden dentro de la serie)",
+        Ui.wholeNumber(), AppSpacing.SM);
+
+    cycleError = new ErrorText(this);
+    root.addView(cycleError);
+  }
+
+  // --- Paso 7: confirmar + paneles de resultado ---
 
   private void buildActions(LinearLayout root) {
     formError = new ErrorText(this);
@@ -614,6 +644,12 @@ public class DonacionesActivity extends AppActivity {
     body.frecuenciaCardiaca = Ui.parseIntOrNull(frecuenciaInput.getText());
     body.pesoDonante = Ui.parseDoubleOrNull(pesoInput.getText());
 
+    // Ciclo manual: nulo cuando el campo queda vacío (Gson lo omite y el
+    // backend lo guarda como null).
+    body.ciclo = Ui.parseIntOrNull(cicloInput.getText());
+    body.serie = Ui.parseIntOrNull(serieInput.getText());
+    body.donacion = Ui.parseIntOrNull(donacionInput.getText());
+
     body.componentes = new ArrayList<>();
     for (Map.Entry<Long, Integer> entry : cantidades.entrySet()) {
       Integer qty = entry.getValue();
@@ -681,12 +717,37 @@ public class DonacionesActivity extends AppActivity {
       ok = false;
     }
 
+    if (!validCycle(cicloInput) || !validCycle(serieInput) || !validCycle(donacionInput)) {
+      ok = false;
+    }
+
     if (!ok && clinicalError.getVisibility() != View.VISIBLE
         && compError.getVisibility() != View.VISIBLE
+        && cycleError.getVisibility() != View.VISIBLE
         && tipoGroup.error().getVisibility() != View.VISIBLE) {
       formError.show("Revisá los datos antes de confirmar");
     }
     return ok;
+  }
+
+  /** Valida un contador de ciclo opcional: si vino, entero y mayor o igual a 1. */
+  private boolean validCycle(AppInput input) {
+    String text = input.getText();
+    if (text.isEmpty()) {
+      return true;
+    }
+    boolean valid = text.matches("\\d+");
+    if (valid) {
+      try {
+        valid = Integer.parseInt(text) >= 1;
+      } catch (NumberFormatException e) {
+        valid = false;
+      }
+    }
+    if (!valid) {
+      cycleError.show("Cada valor del ciclo debe ser un entero mayor o igual a 1");
+    }
+    return valid;
   }
 
   /** Valida que un input opcional, si vino, sea numerico. */
@@ -798,6 +859,7 @@ public class DonacionesActivity extends AppActivity {
     selectedTipoBolsa = "doble";
     selectedBrazo = "izquierdo";
     clearClinicalInputs();
+    clearCycleInputs();
     if (dobleEtiquetaCheck != null) {
       dobleEtiquetaCheck.setChecked(false);
     }
@@ -820,6 +882,12 @@ public class DonacionesActivity extends AppActivity {
     clearInput(diastolicaInput);
     clearInput(frecuenciaInput);
     clearInput(pesoInput);
+  }
+
+  private void clearCycleInputs() {
+    clearInput(cicloInput);
+    clearInput(serieInput);
+    clearInput(donacionInput);
   }
 
   private void clearInput(AppInput input) {
@@ -882,6 +950,13 @@ public class DonacionesActivity extends AppActivity {
       clinicalError.show(errors.get("signos_clinicos"));
       handled = true;
     }
+    if (errors.containsKey("ciclo") || errors.containsKey("serie")
+        || errors.containsKey("donacion")) {
+      String message = errors.containsKey("ciclo") ? errors.get("ciclo")
+          : errors.containsKey("serie") ? errors.get("serie") : errors.get("donacion");
+      cycleError.show(message);
+      handled = true;
+    }
     for (String key : new String[] {"tipo_bolsa", "anticoagulante", "lote",
         "tubuladura", "brazo", "dificultad", "doble_etiqueta"}) {
       if (errors.containsKey(key)) {
@@ -903,6 +978,7 @@ public class DonacionesActivity extends AppActivity {
     compError.hide();
     clinicalError.hide();
     bagError.hide();
+    cycleError.hide();
     formError.hide();
   }
 }

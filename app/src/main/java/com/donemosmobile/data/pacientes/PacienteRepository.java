@@ -13,9 +13,17 @@ import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.PacientePageDto;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.util.Map;
 
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -41,6 +49,14 @@ public class PacienteRepository {
 
   private final PacienteApi api;
   private final TokenStore tokenStore;
+
+  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+  /**
+   * Gson propio de esta peticion: serializa explicitamente los {@code null}
+   * para que vaciar un contador lo reinicie en el backend.
+   */
+  private static final Gson EXPLICIT_NULLS = new GsonBuilder().serializeNulls().create();
 
   public PacienteRepository(Context context) {
     ApiClient client = ApiClient.get(context);
@@ -149,6 +165,52 @@ public class PacienteRepository {
         callback.onError(ApiError.Type.NETWORK, t.getMessage());
       }
     });
+  }
+
+  /**
+   * Actualiza los contadores manuales del ciclo ({@code PATCH
+   * /api/pacientes/{dni}}). Manda las tres claves siempre, con {@code null}
+   * explicito cuando el campo quedo vacio: el contrato usa
+   * {@code sometimes|nullable}, asi que omitir una clave la dejaria intacta y
+   * no la reiniciaria. La respuesta trae el modelo crudo y reemplaza la ficha
+   * cacheada del DNI.
+   */
+  public void updateCiclo(String dni, Integer ciclo, Integer serie, Integer donacion,
+      final Callback<PacienteDto> callback) {
+    JsonObject body = new JsonObject();
+    body.add("ciclo_actual", cycleValue(ciclo));
+    body.add("serie_actual", cycleValue(serie));
+    body.add("donacion_actual", cycleValue(donacion));
+    RequestBody request = RequestBody.create(EXPLICIT_NULLS.toJson(body), JSON);
+
+    api.update(dni, request).enqueue(new retrofit2.Callback<PacienteDto>() {
+      @Override
+      public void onResponse(@NonNull Call<PacienteDto> call,
+          @NonNull Response<PacienteDto> response) {
+        if (response.isSuccessful() && response.body() != null) {
+          DataCache.getInstance().put(cacheKey(dni), response.body());
+          callback.onSuccess(response.body());
+          return;
+        }
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
+          Map<String, String> fields = ApiError.fieldErrors(response);
+          if (!fields.isEmpty()) {
+            callback.onValidationError(fields);
+            return;
+          }
+        }
+        handleError(response, callback);
+      }
+
+      @Override
+      public void onFailure(@NonNull Call<PacienteDto> call, @NonNull Throwable t) {
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+      }
+    });
+  }
+
+  private static JsonElement cycleValue(Integer value) {
+    return value == null ? JsonNull.INSTANCE : new JsonPrimitive(value);
   }
 
   private <T> void handleError(Response<?> response, Callback<T> callback) {

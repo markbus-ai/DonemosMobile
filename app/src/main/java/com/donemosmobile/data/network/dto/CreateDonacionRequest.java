@@ -66,6 +66,20 @@ public class CreateDonacionRequest {
   @SerializedName("peso_donante")
   public Double pesoDonante;
 
+  /**
+   * Metadatos manuales del ciclo: {@code ciclo > serie > donacion}, donde
+   * {@code donacion} es el ordinal dentro de la serie. Son opcionales y libres
+   * (los carga el personal); el backend no los calcula. Nulos se omiten.
+   */
+  @SerializedName("ciclo")
+  public Integer ciclo;
+
+  @SerializedName("serie")
+  public Integer serie;
+
+  @SerializedName("donacion")
+  public Integer donacion;
+
   @SerializedName("forzar")
   public Boolean forzar;
 

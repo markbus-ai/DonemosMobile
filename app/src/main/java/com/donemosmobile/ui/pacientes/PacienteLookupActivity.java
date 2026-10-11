@@ -1,10 +1,15 @@
 package com.donemosmobile.ui.pacientes;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
 
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
@@ -15,12 +20,15 @@ import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
+import com.donemosmobile.ui.components.ErrorText;
 import com.donemosmobile.ui.components.ScreenHeader;
 import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.components.StateView;
 import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
+
+import java.util.Map;
 
 /**
  * Búsqueda rápida de un paciente por DNI: input, botón y card de resultado.
@@ -141,8 +149,29 @@ public class PacienteLookupActivity extends AppActivity {
       addLine(content, "Altura", paciente.altura + " cm");
     }
 
+    // Contadores del ciclo: manuales, siempre visibles con guion si faltan.
+    addLine(content, "Ciclo", cycleValue(paciente.cicloActual));
+    addLine(content, "Serie", cycleValue(paciente.serieActual));
+    addLine(content, "Donación", cycleValue(paciente.donacionActual));
+
     AppCard card = new AppCard(this, content);
     resultContainer.addView(card);
+
+    AppButton edit = new AppButton(this, "Editar ciclo", AppButton.Style.OUTLINED,
+        v -> promptEditCiclo(paciente));
+    LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 44));
+    editParams.topMargin = Ui.dp(this, AppSpacing.SM);
+    resultContainer.addView(edit, editParams);
+
+    TextView note = new TextView(this);
+    note.setText("Los contadores del ciclo son manuales: se cargan o se reinician a mano.");
+    AppTypography.caption(note);
+    resultContainer.addView(note, Ui.matchWrap(this, AppSpacing.XS));
+  }
+
+  private String cycleValue(Integer value) {
+    return value != null ? String.valueOf(value) : "—";
   }
 
   private void addLine(LinearLayout parent, String label, String value) {
@@ -150,5 +179,121 @@ public class PacienteLookupActivity extends AppActivity {
     line.setText(label + ": " + value);
     AppTypography.body(line);
     parent.addView(line, Ui.matchWrap(this, AppSpacing.XS));
+  }
+
+  // --- Editar ciclo (manual, con reinicio) ---
+
+  private void promptEditCiclo(PacienteDto paciente) {
+    if (paciente == null || paciente.dni == null) {
+      return;
+    }
+
+    LinearLayout form = new LinearLayout(this);
+    form.setOrientation(LinearLayout.VERTICAL);
+    int pad = Ui.dp(this, AppSpacing.MD);
+    form.setPadding(pad, Ui.dp(this, AppSpacing.SM), pad, 0);
+
+    TextView helper = new TextView(this);
+    helper.setText("Carga manual. Dejá un campo vacío para reiniciarlo.");
+    AppTypography.caption(helper);
+    form.addView(helper, Ui.matchWrapBottom(this, AppSpacing.SM));
+
+    AppInput ciclo = cycleField(form, "Ciclo", paciente.cicloActual);
+    AppInput serie = cycleField(form, "Serie", paciente.serieActual);
+    AppInput donacion = cycleField(form, "Donación (orden dentro de la serie)",
+        paciente.donacionActual);
+
+    ErrorText error = new ErrorText(this);
+    form.addView(error);
+
+    AlertDialog dialog = new AlertDialog.Builder(this)
+        .setTitle("Editar ciclo de donaciones")
+        .setView(form)
+        .setNegativeButton("Cancelar", null)
+        .setPositiveButton("Guardar", null)
+        .create();
+
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+        .setOnClickListener(v -> saveCiclo(paciente, dialog,
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE), ciclo, serie, donacion, error)));
+    dialog.show();
+  }
+
+  private AppInput cycleField(LinearLayout parent, String hint, Integer current) {
+    AppInput input = new AppInput(this, hint);
+    input.getEditText().setInputType(InputType.TYPE_CLASS_NUMBER);
+    if (current != null) {
+      input.getEditText().setText(String.valueOf(current));
+    }
+    parent.addView(input, Ui.matchWrap(this, AppSpacing.SM));
+    return input;
+  }
+
+  private void saveCiclo(PacienteDto paciente, AlertDialog dialog, Button guardar,
+      AppInput ciclo, AppInput serie, AppInput donacion, ErrorText error) {
+    String invalid = validateCycle(ciclo.getText(), serie.getText(), donacion.getText());
+    if (invalid != null) {
+      error.show(invalid);
+      return;
+    }
+    error.hide();
+    guardar.setEnabled(false);
+    guardar.setText("Guardando…");
+
+    repository.updateCiclo(paciente.dni,
+        Ui.parseIntOrNull(ciclo.getText()),
+        Ui.parseIntOrNull(serie.getText()),
+        Ui.parseIntOrNull(donacion.getText()),
+        new PacienteRepository.Callback<PacienteDto>() {
+          @Override
+          public void onSuccess(PacienteDto data) {
+            dialog.dismiss();
+            Toast.makeText(PacienteLookupActivity.this, "Ciclo actualizado",
+                Toast.LENGTH_SHORT).show();
+            if (data != null) {
+              showResult(data);
+            }
+          }
+
+          @Override
+          public void onValidationError(Map<String, String> fieldErrors) {
+            restoreSaveButton(guardar);
+            String first = fieldErrors.values().iterator().hasNext()
+                ? fieldErrors.values().iterator().next() : null;
+            error.show(first != null && !first.isEmpty()
+                ? first : "No se pudo actualizar el ciclo");
+          }
+
+          @Override
+          public void onError(ApiError.Type type, String message) {
+            restoreSaveButton(guardar);
+            error.show(ApiMessages.forType(type, message, "No se pudo actualizar el ciclo"));
+          }
+        });
+  }
+
+  private void restoreSaveButton(Button guardar) {
+    guardar.setEnabled(true);
+    guardar.setText("Guardar");
+  }
+
+  /** Valida los tres contadores: vacíos permitidos, si vienen entero >= 1. */
+  private String validateCycle(String... values) {
+    for (String value : values) {
+      if (value == null || value.isEmpty()) {
+        continue;
+      }
+      if (!value.matches("\\d+")) {
+        return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
+      }
+      try {
+        if (Integer.parseInt(value) < 1) {
+          return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
+        }
+      } catch (NumberFormatException e) {
+        return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
+      }
+    }
+    return null;
   }
 }

@@ -33,6 +33,20 @@ public class PacienteDto {
   public Long aptitudId;
 
   /**
+   * Contadores manuales del ciclo actual del paciente. Los carga el personal
+   * y son nullable: {@code null} significa "sin dato". El backend nunca los
+   * deriva del historial de donaciones.
+   */
+  @SerializedName("ciclo_actual")
+  public Integer cicloActual;
+
+  @SerializedName("serie_actual")
+  public Integer serieActual;
+
+  @SerializedName("donacion_actual")
+  public Integer donacionActual;
+
+  /**
    * Relacion embebida solo en la respuesta de PATCH aptitud (y del listado).
    * El endpoint {@code GET /api/pacientes/{dni}} devuelve el modelo crudo y no
    * la incluye, por eso queda {@code null} tras un lookup comun.
