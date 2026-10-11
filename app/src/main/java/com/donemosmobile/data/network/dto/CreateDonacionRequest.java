@@ -67,9 +67,11 @@ public class CreateDonacionRequest {
   public Double pesoDonante;
 
   /**
-   * Metadatos manuales del ciclo: {@code ciclo > serie > donacion}, donde
-   * {@code donacion} es el ordinal dentro de la serie. Son opcionales y libres
-   * (los carga el personal); el backend no los calcula. Nulos se omiten.
+   * Override opcional de la posicion en el ciclo: {@code ciclo > serie >
+   * donacion}, donde {@code donacion} es el ordinal dentro de la serie. Si se
+   * mandan los tres, el backend los usa tal cual; si van vacios (nulos, Gson
+   * los omite), el backend calcula la posicion y la re-sincroniza en el
+   * paciente. Mandar solo algunos NO cuenta como override: cae al calculo.
    */
   @SerializedName("ciclo")
   public Integer ciclo;

@@ -56,8 +56,9 @@ import java.util.Map;
  * confirmar (201) muestra el numero de donacion y permite marcar la
  * autoexclusion confidencial.
  *
- * <p>Los campos ciclo / serie / donacion son manuales y opcionales: los carga
- * el personal y el sistema no los calcula.
+ * <p>La posicion en el ciclo (ciclo / serie / donacion) la calcula el backend
+ * al registrar la donacion; los tres campos son un override opcional para
+ * casos especificos en los que el personal necesite fijarla a mano.
  *
  * <p>La seccion Donaciones y el tile "Registrar donacion" de la Home apuntan
  * aca: una sola implementacion para ambos puntos de entrada.
@@ -83,6 +84,7 @@ public class DonacionesActivity extends AppActivity {
   private TextView patientName;
   private TextView patientDni;
   private TextView patientAptitud;
+  private TextView patientCycle;
 
   private SelectGroup tipoGroup;
 
@@ -124,6 +126,7 @@ public class DonacionesActivity extends AppActivity {
 
   private StatusPanel successPanel;
   private TextView successNumber;
+  private TextView successPosition;
   private TextView successNote;
   private AppButton autoexclusionButton;
   private AppButton anotherButton;
@@ -255,6 +258,11 @@ public class DonacionesActivity extends AppActivity {
     patientAptitud.setTextColor(AppColors.TEXT_SECONDARY);
     content.addView(patientAptitud);
 
+    patientCycle = new TextView(this);
+    patientCycle.setTextSize(14);
+    patientCycle.setTextColor(AppColors.TEXT_PRIMARY);
+    content.addView(patientCycle, Ui.matchWrap(this, AppSpacing.XS));
+
     patientPanel = new AppCard(this, content);
     patientPanel.setVisibility(View.GONE);
     root.addView(patientPanel, Ui.matchWrap(this, AppSpacing.MD));
@@ -267,7 +275,35 @@ public class DonacionesActivity extends AppActivity {
     patientName.setText(paciente.displayName());
     patientDni.setText("DNI " + Ui.safe(paciente.dni));
     patientAptitud.setText("Aptitud: " + AptitudLabels.current(paciente));
+    patientCycle.setText(currentPositionText(
+        paciente.cicloActual, paciente.serieActual, paciente.donacionActual));
     patientPanel.setVisibility(View.VISIBLE);
+  }
+
+  /**
+   * Posicion actual del donante para el panel del paciente. Sin donaciones
+   * registradas (los tres contadores nulos) se explica en vez de mostrar
+   * guiones.
+   */
+  private String currentPositionText(Integer ciclo, Integer serie, Integer donacion) {
+    if (ciclo == null && serie == null && donacion == null) {
+      return "Sin donaciones registradas todavía";
+    }
+    return "Ciclo actual: " + cycleValue(ciclo) + " · Serie " + cycleValue(serie)
+        + " · Donación " + cycleValue(donacion);
+  }
+
+  /** Posicion resultante devuelta por el 201, para el panel de exito. */
+  private String resultPositionText(Integer ciclo, Integer serie, Integer donacion) {
+    if (ciclo == null && serie == null && donacion == null) {
+      return null;
+    }
+    return "Ciclo " + cycleValue(ciclo) + " · Serie " + cycleValue(serie)
+        + " · Donación " + cycleValue(donacion);
+  }
+
+  private String cycleValue(Integer value) {
+    return value != null ? String.valueOf(value) : "—";
   }
 
   // --- Paso 2: tipo de donacion ---
@@ -508,14 +544,16 @@ public class DonacionesActivity extends AppActivity {
     }
   }
 
-  // --- Paso 6: ciclo manual (opcional) ---
+  // --- Paso 6: ciclo (calculado, con override opcional) ---
 
   private void buildCicloSection(LinearLayout root) {
     Ui.sectionTitle(root, this, "Ciclo de donaciones", AppSpacing.LG);
 
     TextView helper = new TextView(this);
-    helper.setText("Carga manual y opcional: ciclo > serie > donación. "
-        + "Los decidís vos; el sistema no los calcula. Dejá los campos vacíos si no aplican.");
+    helper.setText("La posición en el ciclo (ciclo > serie > donación) se calcula "
+        + "automáticamente al registrar la donación: 5 donaciones por serie y 3 series "
+        + "por ciclo. Dejá los campos vacíos para que la calcule el sistema; completalos "
+        + "solo si necesitás fijar la posición manualmente.");
     AppTypography.caption(helper);
     root.addView(helper);
 
@@ -559,6 +597,11 @@ public class DonacionesActivity extends AppActivity {
     successNumber.setTypeface(android.graphics.Typeface.create(
         "sans-serif-medium", android.graphics.Typeface.NORMAL));
     successPanel.body().addView(successNumber, Ui.matchWrap(this, AppSpacing.XS));
+
+    successPosition = new TextView(this);
+    successPosition.setTextSize(14);
+    successPosition.setTextColor(AppColors.TEXT_PRIMARY);
+    successPanel.body().addView(successPosition, Ui.matchWrap(this, AppSpacing.XS));
 
     successNote = new TextView(this);
     successNote.setTextSize(13);
@@ -644,8 +687,9 @@ public class DonacionesActivity extends AppActivity {
     body.frecuenciaCardiaca = Ui.parseIntOrNull(frecuenciaInput.getText());
     body.pesoDonante = Ui.parseDoubleOrNull(pesoInput.getText());
 
-    // Ciclo manual: nulo cuando el campo queda vacío (Gson lo omite y el
-    // backend lo guarda como null).
+    // Override opcional de la posicion: nulo cuando el campo queda vacío (Gson
+    // lo omite). Solo los tres juntos cuentan como override; si falta alguno, el
+    // backend calcula la posicion.
     body.ciclo = Ui.parseIntOrNull(cicloInput.getText());
     body.serie = Ui.parseIntOrNull(serieInput.getText());
     body.donacion = Ui.parseIntOrNull(donacionInput.getText());
@@ -788,6 +832,22 @@ public class DonacionesActivity extends AppActivity {
     String numero = donacion != null && donacion.numeroDonacion != null
         ? donacion.numeroDonacion : "—";
     successNumber.setText("Nº " + numero);
+
+    Integer ciclo = donacion != null ? donacion.ciclo : null;
+    Integer serie = donacion != null ? donacion.serie : null;
+    Integer donacionNum = donacion != null ? donacion.donacion : null;
+    String position = resultPositionText(ciclo, serie, donacionNum);
+    if (position != null) {
+      successPosition.setText(position);
+      successPosition.setVisibility(View.VISIBLE);
+      // La posicion ya quedo sincronizada en el paciente: reflejarla arriba.
+      if (patientCycle != null) {
+        patientCycle.setText(currentPositionText(ciclo, serie, donacionNum));
+      }
+    } else {
+      successPosition.setVisibility(View.GONE);
+    }
+
     successNote.setVisibility(View.GONE);
     autoexclusionButton.setEnabled(true);
     autoexclusionButton.setVisibility(View.VISIBLE);

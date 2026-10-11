@@ -149,7 +149,8 @@ public class PacienteLookupActivity extends AppActivity {
       addLine(content, "Altura", paciente.altura + " cm");
     }
 
-    // Contadores del ciclo: manuales, siempre visibles con guion si faltan.
+    // Posicion actual del ciclo: la mantiene el sistema, siempre visible con
+    // guion si falta.
     addLine(content, "Ciclo", cycleValue(paciente.cicloActual));
     addLine(content, "Serie", cycleValue(paciente.serieActual));
     addLine(content, "Donación", cycleValue(paciente.donacionActual));
@@ -165,7 +166,8 @@ public class PacienteLookupActivity extends AppActivity {
     resultContainer.addView(edit, editParams);
 
     TextView note = new TextView(this);
-    note.setText("Los contadores del ciclo son manuales: se cargan o se reinician a mano.");
+    note.setText("La posición en el ciclo la calcula el sistema al registrar cada "
+        + "donación; editala solo para fijarla manualmente.");
     AppTypography.caption(note);
     resultContainer.addView(note, Ui.matchWrap(this, AppSpacing.XS));
   }

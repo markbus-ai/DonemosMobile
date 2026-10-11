@@ -33,9 +33,10 @@ public class PacienteDto {
   public Long aptitudId;
 
   /**
-   * Contadores manuales del ciclo actual del paciente. Los carga el personal
-   * y son nullable: {@code null} significa "sin dato". El backend nunca los
-   * deriva del historial de donaciones.
+   * Posicion actual del donante en el ciclo. La mantiene el sistema: cada
+   * donacion nueva la recalcula y la re-sincroniza (el PATCH manual sigue
+   * valiendo como override). Es nullable: {@code null} significa "sin
+   * donaciones registradas todavia".
    */
   @SerializedName("ciclo_actual")
   public Integer cicloActual;

@@ -7,7 +7,9 @@ import java.util.List;
 /**
  * Donacion devuelta por {@code POST /api/donaciones} (201). Lo que la pantalla
  * necesita es {@code numero_donacion} para confirmar y luego poder marcar la
- * autoexclusion; {@code componentes} viene embebido.
+ * autoexclusion; {@code ciclo}/{@code serie}/{@code donacion} traen la posicion
+ * resuelta por el backend (calculada o el override cargado); {@code componentes}
+ * viene embebido.
  */
 public class DonacionDto {
 
@@ -25,6 +27,16 @@ public class DonacionDto {
 
   @SerializedName("fecha")
   public String fecha;
+
+  /** Posicion en el ciclo resuelta por el backend para esta donacion. */
+  @SerializedName("ciclo")
+  public Integer ciclo;
+
+  @SerializedName("serie")
+  public Integer serie;
+
+  @SerializedName("donacion")
+  public Integer donacion;
 
   @SerializedName("componentes")
   public List<ComponenteDto> componentes;
