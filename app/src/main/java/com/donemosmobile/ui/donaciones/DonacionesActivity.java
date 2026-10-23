@@ -1,6 +1,7 @@
 package com.donemosmobile.ui.donaciones;
 
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +25,7 @@ import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.TipoDonacionDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.AptitudLabels;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
@@ -138,6 +140,9 @@ public class DonacionesActivity extends AppActivity {
   private String selectedTipoBolsa = "doble";
   private String selectedBrazo = "izquierdo";
   private boolean submitting;
+  /** DNI of the latest lookup; responses for any other DNI are ignored. */
+  private String pendingDni;
+  private boolean autoexclusionInFlight;
   private boolean autoexclusionRegistered;
   private DonacionDto createdDonacion;
 
@@ -213,10 +218,16 @@ public class DonacionesActivity extends AppActivity {
   private void search(String dni) {
     hidePanels();
     state.showLoading();
+    pendingDni = dni;
+    picker.setSearching(true);
 
     pacienteRepository.findByDniWithAptitud(dni, new PacienteRepository.Callback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
+        if (isStale(dni)) {
+          return;
+        }
+        picker.setSearching(false);
         state.hide();
         selectedPaciente = data;
         showPatient(data);
@@ -224,6 +235,10 @@ public class DonacionesActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (isStale(dni)) {
+          return;
+        }
+        picker.setSearching(false);
         selectedPaciente = null;
         if (type == ApiError.Type.NOT_FOUND) {
           state.showEmpty("No existe un paciente con ese DNI");
@@ -239,6 +254,11 @@ public class DonacionesActivity extends AppActivity {
             DonacionesActivity.this::search);
       }
     });
+  }
+
+  /** True when the activity is gone or a newer search replaced this one. */
+  private boolean isStale(String dni) {
+    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
   }
 
   private void buildPatientPanel(LinearLayout root) {
@@ -631,7 +651,8 @@ public class DonacionesActivity extends AppActivity {
     clearErrors();
     hideWarning();
     successPanel.hide();
-    if (!forzar && !validate()) {
+    // Forcing only skips the business warnings, never the input validation.
+    if (!validate()) {
       return;
     }
     setSubmitting(true);
@@ -723,25 +744,15 @@ public class DonacionesActivity extends AppActivity {
       compError.show("Agregá al menos un componente");
       ok = false;
     }
-    if (!validNumeric(hemoglobinaInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(hematocritoInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(plaquetasInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(sistolicaInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(diastolicaInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(frecuenciaInput, clinicalError)) {
-      ok = false;
-    }
-    if (!validNumeric(pesoInput, clinicalError)) {
+    boolean clinicalOk = checkBounds(hemoglobinaInput, NumericBounds.HEMOGLOBINA);
+    clinicalOk &= checkBounds(hematocritoInput, NumericBounds.HEMATOCRITO);
+    clinicalOk &= checkBounds(plaquetasInput, NumericBounds.PLAQUETAS);
+    clinicalOk &= checkBounds(sistolicaInput, NumericBounds.SISTOLICA);
+    clinicalOk &= checkBounds(diastolicaInput, NumericBounds.DIASTOLICA);
+    clinicalOk &= checkBounds(frecuenciaInput, NumericBounds.FRECUENCIA);
+    clinicalOk &= checkBounds(pesoInput, NumericBounds.PESO);
+    if (!clinicalOk) {
+      clinicalError.show("Revisá los valores clínicos marcados");
       ok = false;
     }
 
@@ -756,12 +767,17 @@ public class DonacionesActivity extends AppActivity {
 
     Integer sistolica = Ui.parseIntOrNull(sistolicaInput.getText());
     Integer diastolica = Ui.parseIntOrNull(diastolicaInput.getText());
-    if (sistolica != null && diastolica != null && diastolica > sistolica) {
-      clinicalError.show("La presión diastólica no puede superar la sistólica");
+    String presionError = NumericBounds.checkPresion(sistolica, diastolica);
+    if (presionError != null) {
+      diastolicaInput.setError(presionError);
+      clinicalError.show(presionError);
       ok = false;
     }
 
-    if (!validCycle(cicloInput) || !validCycle(serieInput) || !validCycle(donacionInput)) {
+    String cycleProblem = NumericBounds.checkCycle(cicloInput.getText(), serieInput.getText(),
+        donacionInput.getText());
+    if (cycleProblem != null) {
+      cycleError.show(cycleProblem);
       ok = false;
     }
 
@@ -774,39 +790,11 @@ public class DonacionesActivity extends AppActivity {
     return ok;
   }
 
-  /** Valida un contador de ciclo opcional: si vino, entero y mayor o igual a 1. */
-  private boolean validCycle(AppInput input) {
-    String text = input.getText();
-    if (text.isEmpty()) {
-      return true;
-    }
-    boolean valid = text.matches("\\d+");
-    if (valid) {
-      try {
-        valid = Integer.parseInt(text) >= 1;
-      } catch (NumberFormatException e) {
-        valid = false;
-      }
-    }
-    if (!valid) {
-      cycleError.show("Cada valor del ciclo debe ser un entero mayor o igual a 1");
-    }
-    return valid;
-  }
-
-  /** Valida que un input opcional, si vino, sea numerico. */
-  private boolean validNumeric(AppInput input, ErrorText errorTarget) {
-    String text = input.getText();
-    if (text.isEmpty()) {
-      return true;
-    }
-    try {
-      Double.parseDouble(text);
-      return true;
-    } catch (NumberFormatException e) {
-      errorTarget.show("Hay un valor numérico inválido");
-      return false;
-    }
+  /** Shows the Spanish bounds error on the field itself; true when valid. */
+  private boolean checkBounds(AppInput input, NumericBounds.Range range) {
+    String error = NumericBounds.check(range, input.getText());
+    input.setError(error);
+    return error == null;
   }
 
   // --- 409 / 201 ---
@@ -864,6 +852,8 @@ public class DonacionesActivity extends AppActivity {
     final EditText motivo = new EditText(this);
     motivo.setHint("Motivo (opcional)");
     motivo.setInputType(InputType.TYPE_CLASS_TEXT);
+    // Same cap as the API column (varchar 255).
+    motivo.setFilters(new InputFilter[] {new InputFilter.LengthFilter(255)});
     new AlertDialog.Builder(this)
         .setTitle("Marcar autoexclusión")
         .setMessage("Registro confidencial del donante. No se guarda su identidad.")
@@ -875,15 +865,20 @@ public class DonacionesActivity extends AppActivity {
   }
 
   private void registerAutoexclusion(String motivo) {
-    if (autoexclusionRegistered) {
+    if (autoexclusionRegistered || autoexclusionInFlight) {
       return;
     }
+    autoexclusionInFlight = true;
     autoexclusionButton.setEnabled(false);
     donacionRepository.marcarAutoexclusion(createdDonacion.numeroDonacion, motivo,
         new DonacionRepository.Callback<AutoexclusionDto>() {
           @Override
           public void onSuccess(AutoexclusionDto data) {
+            autoexclusionInFlight = false;
             autoexclusionRegistered = true;
+            if (isFinishing() || isDestroyed()) {
+              return;
+            }
             successNote.setText("Autoexclusión registrada y confidencial.");
             successNote.setVisibility(View.VISIBLE);
             Toast.makeText(DonacionesActivity.this, "Autoexclusión registrada",
@@ -892,12 +887,20 @@ public class DonacionesActivity extends AppActivity {
 
           @Override
           public void onValidationError(Map<String, String> fieldErrors) {
+            autoexclusionInFlight = false;
+            if (isFinishing() || isDestroyed()) {
+              return;
+            }
             autoexclusionButton.setEnabled(true);
-            formError.show("La donación ya tiene una autoexclusión registrada");
+            formError.show(autoexclusionFieldMessage(fieldErrors));
           }
 
           @Override
           public void onError(ApiError.Type type, String message) {
+            autoexclusionInFlight = false;
+            if (isFinishing() || isDestroyed()) {
+              return;
+            }
             autoexclusionButton.setEnabled(true);
             formError.show(
                 ApiMessages.forType(type, message, "No se pudo registrar la donación",
@@ -906,9 +909,26 @@ public class DonacionesActivity extends AppActivity {
         });
   }
 
+  /** Spanish copy for the autoexclusion 422 keys; Laravel text may be English. */
+  private String autoexclusionFieldMessage(Map<String, String> fieldErrors) {
+    if (fieldErrors.containsKey("motivo")) {
+      return "El motivo no puede superar los 255 caracteres";
+    }
+    if (fieldErrors.containsKey("numero") || fieldErrors.containsKey("donacion")
+        || fieldErrors.containsKey("autoexclusion")) {
+      return "La donación ya tiene una autoexclusión registrada";
+    }
+    String first = fieldErrors.values().iterator().hasNext()
+        ? fieldErrors.values().iterator().next() : null;
+    return first != null && !first.isEmpty() ? first : "No se pudo registrar la autoexclusión";
+  }
+
   // --- Reset y helpers ---
 
   private void resetAll() {
+    // Drop any lookup still in flight so its late response cannot repaint.
+    pendingDni = null;
+    picker.setSearching(false);
     picker.dniInput().getEditText().setText("");
     picker.dniInput().setError(null);
     selectedPaciente = null;
@@ -1034,6 +1054,12 @@ public class DonacionesActivity extends AppActivity {
   }
 
   private void clearErrors() {
+    for (AppInput input : new AppInput[] {hemoglobinaInput, hematocritoInput, plaquetasInput,
+        sistolicaInput, diastolicaInput, frecuenciaInput, pesoInput}) {
+      if (input != null) {
+        input.setError(null);
+      }
+    }
     tipoGroup.error().hide();
     compError.hide();
     clinicalError.hide();

@@ -15,6 +15,7 @@ import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppInput;
@@ -210,8 +211,8 @@ public class PacientesActivity extends AppActivity {
     if (dni.isEmpty()) {
       dniInput.setError("Ingresá el DNI");
       valid = false;
-    } else if (!dni.matches("\\d+")) {
-      dniInput.setError("El DNI debe ser numérico");
+    } else if (!NumericBounds.isValidDni(dni)) {
+      dniInput.setError("El DNI debe tener 7 u 8 dígitos y no empezar con 0");
       valid = false;
     }
 
@@ -228,21 +229,20 @@ public class PacientesActivity extends AppActivity {
     if (telefono.isEmpty()) {
       telefonoInput.setError("Ingresá el teléfono");
       valid = false;
-    } else if (!telefono.matches("\\d+")) {
-      telefonoInput.setError("El teléfono debe ser numérico");
+    } else if (!NumericBounds.isValidTelefono(telefono)) {
+      telefonoInput.setError("Teléfono inválido: usá entre 6 y 20 dígitos, espacios, ( ) o -");
       valid = false;
     }
 
     String alturaText = alturaInput.getText();
     if (!alturaText.isEmpty()) {
-      try {
-        double value = Double.parseDouble(alturaText);
-        if (value <= 0 || value > 250) {
-          alturaInput.setError("La altura debe ser mayor a 0 y hasta 250 cm");
-          valid = false;
-        }
-      } catch (NumberFormatException e) {
+      // Accepts a decimal comma ("172,5") like the rest of the numeric fields.
+      Double value = Ui.parseDoubleOrNull(alturaText);
+      if (value == null) {
         alturaInput.setError("Altura inválida");
+        valid = false;
+      } else if (value <= 0 || value > 250) {
+        alturaInput.setError("La altura debe ser mayor a 0 y hasta 250 cm");
         valid = false;
       }
     }
@@ -251,15 +251,7 @@ public class PacientesActivity extends AppActivity {
   }
 
   private Double parseAltura() {
-    String text = alturaInput.getText();
-    if (text.isEmpty()) {
-      return null;
-    }
-    try {
-      return Double.parseDouble(text);
-    } catch (NumberFormatException e) {
-      return null;
-    }
+    return Ui.parseDoubleOrNull(alturaInput.getText());
   }
 
   private void applyFieldErrors(Map<String, String> errors) {

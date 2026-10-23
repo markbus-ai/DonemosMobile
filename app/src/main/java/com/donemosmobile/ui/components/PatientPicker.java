@@ -20,6 +20,10 @@ public class PatientPicker extends LinearLayout {
 
   public enum Layout { ROW, STACKED }
 
+  private final AppButton search;
+  private final String buttonText;
+  private boolean searching;
+
   public interface Listener {
     void onSearch(String dni);
 
@@ -38,7 +42,8 @@ public class PatientPicker extends LinearLayout {
     dniInput = new AppInput(context, dniLabel);
     dniInput.getEditText().setInputType(InputType.TYPE_CLASS_NUMBER);
 
-    AppButton search = new AppButton(context, buttonText, buttonStyle, v -> triggerSearch());
+    this.buttonText = buttonText;
+    search = new AppButton(context, buttonText, buttonStyle, v -> triggerSearch());
 
     if (layout == Layout.ROW) {
       LinearLayout row = new LinearLayout(context);
@@ -81,6 +86,13 @@ public class PatientPicker extends LinearLayout {
     }
   }
 
+  /** Disables "Buscar" while a lookup is in flight so taps cannot stack requests. */
+  public void setSearching(boolean searching) {
+    this.searching = searching;
+    search.setEnabled(!searching);
+    search.setText(searching ? "Buscando…" : buttonText);
+  }
+
   public AppInput dniInput() {
     return dniInput;
   }
@@ -95,6 +107,9 @@ public class PatientPicker extends LinearLayout {
   }
 
   private void triggerSearch() {
+    if (searching) {
+      return;
+    }
     String dni = dniInput.getText();
     dniInput.setError(null);
     if (dni.isEmpty()) {

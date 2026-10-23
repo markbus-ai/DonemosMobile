@@ -38,6 +38,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Turnos del día. Lista los turnos de hoy desde la API, permite crear uno
@@ -65,6 +66,10 @@ public class TurnosActivity extends AppActivity {
   private TimeField horaField;
   private String selectedFecha;
   private String selectedHora;
+  private AppButton confirmarButton;
+  private boolean submitting;
+  /** DNI of the lookup in flight; responses for any other DNI are stale. */
+  private String pendingDni;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -300,6 +305,8 @@ public class TurnosActivity extends AppActivity {
     updatePacienteLabel("Sin paciente seleccionado");
 
     fechaField = new DateField(this, "Fecha", true, this, "Fecha del turno", "date_picker");
+    // Turnos cannot be booked in the past (the API rejects it with 422).
+    fechaField.setFutureOnly(true);
     fechaField.setOnDateSelected((apiDate, displayDate) -> selectedFecha = apiDate);
     root.addView(fechaField);
 
@@ -308,7 +315,8 @@ public class TurnosActivity extends AppActivity {
     root.addView(horaField);
 
     FormActions actions = new FormActions(this);
-    actions.add("Confirmar turno", AppButton.Style.FILLED, v -> confirmar(), 48, AppSpacing.MD);
+    confirmarButton = actions.add("Confirmar turno", AppButton.Style.FILLED, v -> confirmar(), 48,
+        AppSpacing.MD);
     actions.add("Volver a la lista", AppButton.Style.TEXT, v -> loadTurnos(), 48, 0);
     root.addView(actions);
 
@@ -316,9 +324,15 @@ public class TurnosActivity extends AppActivity {
   }
 
   private void buscarPaciente(String dni) {
+    pendingDni = dni;
+    pacientePicker.setSearching(true);
     pacienteRepository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
+        if (isStale(dni)) {
+          return;
+        }
+        pacientePicker.setSearching(false);
         selectedPaciente = data;
         updatePacienteLabel(data.displayName());
         pacienteField.error().hide();
@@ -326,12 +340,27 @@ public class TurnosActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (isStale(dni)) {
+          return;
+        }
+        pacientePicker.setSearching(false);
         selectedPaciente = null;
         updatePacienteLabel("Sin paciente seleccionado");
-        pacienteField.error().show(
-            ApiMessages.forType(type, message, "No se pudo registrar el turno", "Ocurrió un error"));
+        pacienteField.error().show(type == ApiError.Type.NOT_FOUND
+            ? "No existe un paciente con ese DNI"
+            // Never surface the raw backend text of a lookup (may be English).
+            : ApiMessages.forType(type, null, "No se pudo buscar el paciente",
+                "No se pudo buscar el paciente"));
       }
     });
+  }
+
+  /** True when the activity is gone or a newer search replaced this one. */
+  private boolean isStale(String dni) {
+    if (isFinishing() || isDestroyed()) {
+      return true;
+    }
+    return !dni.equals(pendingDni);
   }
 
   private void updatePacienteLabel(String text) {
@@ -344,6 +373,9 @@ public class TurnosActivity extends AppActivity {
   }
 
   private void confirmar() {
+    if (submitting) {
+      return;
+    }
     clearErrors();
 
     // Validación inline: cada error queda debajo de su campo, no en un Toast.
@@ -360,33 +392,103 @@ public class TurnosActivity extends AppActivity {
       horaField.error().show("Elegí la hora del turno");
       valid = false;
     }
+    if (selectedFecha != null && selectedFecha.compareTo(hoy()) < 0) {
+      fechaField.error().show("La fecha del turno no puede ser anterior a hoy");
+      valid = false;
+    } else if (selectedFecha != null && selectedHora != null && selectedFecha.equals(hoy())
+        && selectedHora.compareTo(horaActual()) < 0) {
+      horaField.error().show("La hora del turno ya pasó");
+      valid = false;
+    }
     if (!valid) {
       return;
     }
+
+    setSubmitting(true);
 
     CreateTurnoRequest body = new CreateTurnoRequest(
         selectedPaciente.id, selectedFecha, selectedHora, null);
     turnoRepository.create(body, new TurnoRepository.Callback<TurnoDto>() {
       @Override
       public void onSuccess(TurnoDto data) {
+        setSubmitting(false);
+        if (isFinishing() || isDestroyed()) {
+          return;
+        }
         Toast.makeText(TurnosActivity.this, "Turno registrado", Toast.LENGTH_SHORT).show();
         resetForm();
         loadTurnos();
       }
 
       @Override
+      public void onValidationError(Map<String, String> fieldErrors) {
+        setSubmitting(false);
+        applyFieldErrors(fieldErrors);
+      }
+
+      @Override
       public void onError(ApiError.Type type, String message) {
-        Toast.makeText(TurnosActivity.this,
-            ApiMessages.forType(type, message, "No se pudo registrar el turno", "Ocurrió un error"),
-            Toast.LENGTH_LONG).show();
+        setSubmitting(false);
+        if (isFinishing() || isDestroyed()) {
+          return;
+        }
+        String text;
+        if (type == ApiError.Type.NOT_FOUND) {
+          text = "No existe un paciente con ese DNI";
+        } else if (type == ApiError.Type.CLIENT && message != null && !message.isEmpty()) {
+          // 409 business rules (capacity, interval) come with a Spanish message.
+          text = message;
+        } else {
+          text = ApiMessages.forType(type, null, "No se pudo registrar el turno",
+              "No se pudo registrar el turno");
+        }
+        Toast.makeText(TurnosActivity.this, text, Toast.LENGTH_LONG).show();
       }
     });
+  }
+
+  /** Maps Laravel 422 keys to fixed Spanish copy under each field. */
+  private void applyFieldErrors(Map<String, String> errors) {
+    boolean shown = false;
+    if (errors.containsKey("paciente_id")) {
+      pacienteField.error().show("Seleccioná un paciente válido");
+      shown = true;
+    }
+    if (errors.containsKey("fecha")) {
+      fechaField.error().show("La fecha del turno no puede ser anterior a hoy");
+      shown = true;
+    }
+    if (errors.containsKey("hora")) {
+      horaField.error().show("Elegí una hora válida");
+      shown = true;
+    }
+    if (!shown) {
+      Toast.makeText(this, "Revisá los datos del turno", Toast.LENGTH_LONG).show();
+    }
+  }
+
+  private void setSubmitting(boolean value) {
+    submitting = value;
+    if (confirmarButton != null) {
+      confirmarButton.setEnabled(!value);
+      confirmarButton.setText(value ? "Guardando…" : "Confirmar turno");
+    }
   }
 
   private void resetForm() {
     selectedPaciente = null;
     selectedFecha = null;
     selectedHora = null;
+    pendingDni = null;
+    if (pacientePicker != null) {
+      pacientePicker.setSearching(false);
+      pacientePicker.dniInput().getEditText().setText("");
+      pacientePicker.dniInput().setError(null);
+    }
+    updatePacienteLabel("Sin paciente seleccionado");
+    fechaField.resetValue();
+    horaField.resetValue();
+    clearErrors();
   }
 
   private void clearErrors() {
@@ -401,6 +503,11 @@ public class TurnosActivity extends AppActivity {
   /** Fecha de hoy en formato de API ({@code YYYY-MM-DD}). */
   private String hoy() {
     return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+  }
+
+  /** Current local time as {@code HH:mm}, comparable with the picked hour. */
+  private String horaActual() {
+    return new SimpleDateFormat("HH:mm", Locale.US).format(new Date());
   }
 
   private String hoyLegible() {

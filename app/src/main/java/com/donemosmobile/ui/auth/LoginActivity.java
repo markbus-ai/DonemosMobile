@@ -75,10 +75,17 @@ public class LoginActivity extends AppActivity {
     return root;
   }
 
+  private boolean loading;
+
   private void submit() {
+    if (loading) {
+      return;
+    }
     hideError();
     String username = usernameInput.getText();
-    String password = passwordInput.getText();
+    // Passwords are sent verbatim: leading/trailing spaces may be part of them.
+    String password = passwordInput.getEditText().getText() != null
+        ? passwordInput.getEditText().getText().toString() : "";
 
     if (username.isEmpty()) {
       showError("Ingresá tu usuario");
@@ -94,6 +101,9 @@ public class LoginActivity extends AppActivity {
       @Override
       public void onSuccess(UserDto data) {
         setLoading(false);
+        if (isFinishing() || isDestroyed()) {
+          return;
+        }
         goToHome();
       }
 
@@ -128,6 +138,7 @@ public class LoginActivity extends AppActivity {
   }
 
   private void setLoading(boolean loading) {
+    this.loading = loading;
     submitButton.setEnabled(!loading);
     submitButton.setText(loading ? "Ingresando…" : "Ingresar");
     usernameInput.setEnabled(!loading);

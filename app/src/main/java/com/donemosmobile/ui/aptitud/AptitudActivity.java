@@ -79,6 +79,8 @@ public class AptitudActivity extends AppActivity {
   private List<MotivoDto> motivos;
   private boolean motivosLoading;
   private boolean submitting;
+  /** DNI of the latest lookup; older responses are ignored. */
+  private String pendingDni;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -142,13 +144,24 @@ public class AptitudActivity extends AppActivity {
     search(dni);
   }
 
+  /** True when the activity is gone or a newer search replaced this one. */
+  private boolean isStale(String dni) {
+    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
+  }
+
   private void search(String dni) {
     hidePanels();
     state.showLoading();
+    pendingDni = dni;
+    picker.setSearching(true);
 
     pacienteRepository.findByDniWithAptitud(dni, new PacienteRepository.Callback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
+        if (isStale(dni)) {
+          return;
+        }
+        picker.setSearching(false);
         state.hide();
         selectedPaciente = data;
         resetAction();
@@ -157,6 +170,10 @@ public class AptitudActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (isStale(dni)) {
+          return;
+        }
+        picker.setSearching(false);
         selectedPaciente = null;
         if (type == ApiError.Type.NOT_FOUND) {
           state.showEmpty("No existe un paciente con ese DNI");
@@ -265,8 +282,7 @@ public class AptitudActivity extends AppActivity {
         hastaField.value().setTextColor(AppColors.TEXT_SECONDARY);
         hastaField.error().hide();
       } else if (selectedHasta == null) {
-        hastaField.value().setText("");
-        hastaField.value().setTextColor(AppColors.TEXT_SECONDARY);
+        hastaField.resetValue();
       }
       hastaField.setFieldEnabled(!checked);
     });
@@ -299,6 +315,10 @@ public class AptitudActivity extends AppActivity {
 
   private void selectTipo(String tipo) {
     selectedTipo = tipo;
+    // "Permanente" only applies to NO_APTO: leaving it must re-enable "Hasta".
+    if (!TIPO_NO_APTO.equals(tipo) && permanenteCheck != null && permanenteCheck.isChecked()) {
+      permanenteCheck.setChecked(false);
+    }
     tipoGroup.error().hide();
     renderTipo();
   }
@@ -501,6 +521,9 @@ public class AptitudActivity extends AppActivity {
   }
 
   private void resetAll() {
+    // Drop any lookup still in flight so its late response cannot repaint.
+    pendingDni = null;
+    picker.setSearching(false);
     picker.dniInput().getEditText().setText("");
     picker.dniInput().setError(null);
     selectedPaciente = null;

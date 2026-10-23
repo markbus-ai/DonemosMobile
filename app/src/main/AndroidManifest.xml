@@ -13,18 +13,34 @@
         tools:targetApi="34">
         <activity
             android:name=".DonemosMobileActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ui.auth.LoginActivity" android:exported="false" />
-        <activity android:name=".ui.pacientes.PacientesActivity" />
-        <activity android:name=".ui.pacientes.PacienteLookupActivity" />
-        <activity android:name=".ui.turnos.TurnosActivity" />
-        <activity android:name=".ui.donaciones.DonacionesActivity" />
-        <activity android:name=".ui.aptitud.AptitudActivity" />
-        <activity android:name=".ui.mas.MasActivity" />
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density"
+            android:exported="false" />
+        <activity
+            android:name=".ui.pacientes.PacientesActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
+        <activity
+            android:name=".ui.pacientes.PacienteLookupActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
+        <activity
+            android:name=".ui.turnos.TurnosActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
+        <activity
+            android:name=".ui.donaciones.DonacionesActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
+        <activity
+            android:name=".ui.aptitud.AptitudActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
+        <activity
+            android:name=".ui.mas.MasActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|keyboard|density" />
     </application>
 </manifest>

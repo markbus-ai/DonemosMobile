@@ -98,25 +98,13 @@ public final class Ui {
     return value != null && !value.trim().isEmpty() ? value.trim() : null;
   }
 
+  /** Decimal comma tolerant; null for blank or non-numeric text. */
   public static Double parseDoubleOrNull(String value) {
-    if (value == null || value.trim().isEmpty()) {
-      return null;
-    }
-    try {
-      return Double.valueOf(value.trim());
-    } catch (NumberFormatException e) {
-      return null;
-    }
+    return NumberParsing.parseDouble(value);
   }
 
+  /** Whole number; null for blank, fractions or int overflow. */
   public static Integer parseIntOrNull(String value) {
-    if (value == null || value.trim().isEmpty()) {
-      return null;
-    }
-    try {
-      return (int) Double.parseDouble(value.trim());
-    } catch (NumberFormatException e) {
-      return null;
-    }
+    return NumberParsing.parseInt(value);
   }
 }

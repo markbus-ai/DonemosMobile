@@ -15,6 +15,7 @@ public class TimeField extends FormField {
   }
 
   private OnTimeSelected listener;
+  private TimePickerDialog dialog;
 
   public TimeField(Context context, String label, boolean mediumValue) {
     super(context, label, mediumValue);
@@ -26,8 +27,12 @@ public class TimeField extends FormField {
   }
 
   private void openPicker() {
+    // Ignore a second tap while the dialog is already open.
+    if (dialog != null && dialog.isShowing()) {
+      return;
+    }
     Calendar now = Calendar.getInstance();
-    TimePickerDialog dialog = new TimePickerDialog(
+    dialog = new TimePickerDialog(
         getContext(),
         (view, hourOfDay, minute) -> {
           String value = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);

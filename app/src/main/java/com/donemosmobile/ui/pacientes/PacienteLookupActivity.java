@@ -16,6 +16,7 @@ import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
@@ -40,6 +41,10 @@ public class PacienteLookupActivity extends AppActivity {
   private StateView state;
   private LinearLayout resultContainer;
   private PacienteRepository repository;
+  private AppButton searchButton;
+  /** DNI of the latest lookup; older responses are ignored. */
+  private String pendingDni;
+  private boolean savingCiclo;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +70,7 @@ public class PacienteLookupActivity extends AppActivity {
     dniInput.getEditText().setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
     content.addView(dniInput, Ui.matchWrap(this));
 
-    AppButton searchButton = new AppButton(this, "Buscar", AppButton.Style.FILLED, v -> search());
+    searchButton = new AppButton(this, "Buscar", AppButton.Style.FILLED, v -> search());
     LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         Ui.dp(this, 48));
@@ -87,8 +92,18 @@ public class PacienteLookupActivity extends AppActivity {
     return root;
   }
 
+  private void setSearching(boolean searching) {
+    searchButton.setEnabled(!searching);
+    searchButton.setText(searching ? "Buscando…" : "Buscar");
+  }
+
+  /** True when the activity is gone or a newer search replaced this one. */
+  private boolean isStale(String dni) {
+    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
+  }
+
   private void search() {
-    String dni = dniInput.getText();
+    final String dni = dniInput.getText();
     if (dni.isEmpty()) {
       state.showError("Ingresá un DNI", null);
       return;
@@ -105,15 +120,25 @@ public class PacienteLookupActivity extends AppActivity {
       state.showLoading();
     }
 
+    pendingDni = dni;
+    setSearching(true);
     repository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
+        if (isStale(dni)) {
+          return;
+        }
+        setSearching(false);
         state.hide();
         showResult(data);
       }
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (isStale(dni)) {
+          return;
+        }
+        setSearching(false);
         if (type == ApiError.Type.NOT_FOUND) {
           resultContainer.removeAllViews();
           state.showEmpty("No existe un paciente con ese DNI");
@@ -196,7 +221,7 @@ public class PacienteLookupActivity extends AppActivity {
     form.setPadding(pad, Ui.dp(this, AppSpacing.SM), pad, 0);
 
     TextView helper = new TextView(this);
-    helper.setText("Carga manual. Dejá un campo vacío para reiniciarlo.");
+    helper.setText("Carga manual. Completá los tres valores, o dejá los tres vacíos para reiniciar el ciclo.");
     AppTypography.caption(helper);
     form.addView(helper, Ui.matchWrapBottom(this, AppSpacing.SM));
 
@@ -233,12 +258,17 @@ public class PacienteLookupActivity extends AppActivity {
 
   private void saveCiclo(PacienteDto paciente, AlertDialog dialog, Button guardar,
       AppInput ciclo, AppInput serie, AppInput donacion, ErrorText error) {
-    String invalid = validateCycle(ciclo.getText(), serie.getText(), donacion.getText());
+    if (savingCiclo) {
+      return;
+    }
+    String invalid = NumericBounds.checkCycle(ciclo.getText(), serie.getText(),
+        donacion.getText());
     if (invalid != null) {
       error.show(invalid);
       return;
     }
     error.hide();
+    savingCiclo = true;
     guardar.setEnabled(false);
     guardar.setText("Guardando…");
 
@@ -249,7 +279,14 @@ public class PacienteLookupActivity extends AppActivity {
         new PacienteRepository.Callback<PacienteDto>() {
           @Override
           public void onSuccess(PacienteDto data) {
-            dialog.dismiss();
+            savingCiclo = false;
+            // The user may have left the screen while the request was in flight.
+            if (isFinishing() || isDestroyed()) {
+              return;
+            }
+            if (dialog.isShowing()) {
+              dialog.dismiss();
+            }
             Toast.makeText(PacienteLookupActivity.this, "Ciclo actualizado",
                 Toast.LENGTH_SHORT).show();
             if (data != null) {
@@ -275,27 +312,11 @@ public class PacienteLookupActivity extends AppActivity {
   }
 
   private void restoreSaveButton(Button guardar) {
+    savingCiclo = false;
+    if (isFinishing() || isDestroyed()) {
+      return;
+    }
     guardar.setEnabled(true);
     guardar.setText("Guardar");
-  }
-
-  /** Valida los tres contadores: vacíos permitidos, si vienen entero >= 1. */
-  private String validateCycle(String... values) {
-    for (String value : values) {
-      if (value == null || value.isEmpty()) {
-        continue;
-      }
-      if (!value.matches("\\d+")) {
-        return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
-      }
-      try {
-        if (Integer.parseInt(value) < 1) {
-          return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
-        }
-      } catch (NumberFormatException e) {
-        return "Cada valor del ciclo debe ser un entero mayor o igual a 1";
-      }
-    }
-    return null;
   }
 }
