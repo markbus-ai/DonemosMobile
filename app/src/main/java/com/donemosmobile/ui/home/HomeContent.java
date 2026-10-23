@@ -10,6 +10,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.TurnoDto;
@@ -173,11 +174,17 @@ public class HomeContent extends LinearLayout {
     turnoRepository.list(hoy, null, new ApiCallback<List<TurnoDto>>() {
       @Override
       public void onSuccess(List<TurnoDto> data) {
+        if (!AppActivity.isAlive(context)) {
+          return;
+        }
         renderRecent(data);
       }
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (!AppActivity.isAlive(context)) {
+          return;
+        }
         // Con cache en pantalla no la pisamos; si no hay nada, estado honesto.
         if (turnoRepository.getCachedList(hoy, null) == null) {
           renderRecentState(messageFor(type, message));

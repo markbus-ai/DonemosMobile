@@ -2,6 +2,7 @@ package com.donemosmobile.data.aptitud;
 
 import android.content.Context;
 
+import com.donemosmobile.data.auth.SessionInvalidator;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -9,7 +10,6 @@ import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.UpdateAptitudRequest;
-import com.donemosmobile.ui.auth.SessionExpired;
 
 /**
  * Actualiza la aptitud de un paciente ({@code PATCH
@@ -22,9 +22,8 @@ public class AptitudRepository {
   private final ApiCalls calls;
 
   public AptitudRepository(Context context) {
-    Context appContext = context.getApplicationContext();
     this.api = ApiClient.get(context).pacientes();
-    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
+    this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
   /**

@@ -15,7 +15,6 @@ import com.donemosmobile.data.network.AuthApi;
 import com.donemosmobile.data.network.dto.LoginRequest;
 import com.donemosmobile.data.network.dto.LoginResponse;
 import com.donemosmobile.data.network.dto.UserDto;
-import com.donemosmobile.ui.auth.SessionExpired;
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -50,7 +49,7 @@ public class AuthRepository {
               DataCache.getInstance().clear();
               tokenStore.saveToken(body.token);
               sessionStore.save(body.user);
-              SessionExpired.reset();
+              SessionInvalidator.sessionStarted();
               callback.onSuccess(body.user);
               return;
             }

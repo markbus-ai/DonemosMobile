@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.auth.SessionInvalidator;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -11,7 +12,6 @@ import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.CatalogoApi;
 import com.donemosmobile.data.network.dto.MotivoDto;
 import com.donemosmobile.data.network.dto.TipoDonacionDto;
-import com.donemosmobile.ui.auth.SessionExpired;
 
 import java.util.List;
 
@@ -29,9 +29,8 @@ public class CatalogoRepository {
   private final ApiCalls calls;
 
   public CatalogoRepository(Context context) {
-    Context appContext = context.getApplicationContext();
     this.api = ApiClient.get(context).catalogo();
-    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
+    this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
   /** Lista los motivos y deja el resultado cacheado. */

@@ -103,7 +103,7 @@ public class LoginActivity extends AppActivity {
       @Override
       public void onSuccess(UserDto data) {
         setLoading(false);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         goToHome();
@@ -111,6 +111,9 @@ public class LoginActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (!isAlive()) {
+          return;
+        }
         setLoading(false);
         showError(messageFor(type, message));
       }

@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.auth.SessionInvalidator;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
 import com.donemosmobile.data.network.ApiClient;
@@ -14,7 +15,6 @@ import com.donemosmobile.data.network.dto.AutoexclusionDto;
 import com.donemosmobile.data.network.dto.CreateDonacionRequest;
 import com.donemosmobile.data.network.dto.DonacionDto;
 import com.donemosmobile.data.network.dto.DonacionWarningResponse;
-import com.donemosmobile.ui.auth.SessionExpired;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
@@ -34,9 +34,8 @@ public class DonacionRepository {
   private final ApiCalls calls;
 
   public DonacionRepository(Context context) {
-    Context appContext = context.getApplicationContext();
     this.api = ApiClient.get(context).donaciones();
-    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
+    this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
   /** Crea una donacion. 409 -> {@link WarningCallback#onWarning}, 422 -> por campo. */

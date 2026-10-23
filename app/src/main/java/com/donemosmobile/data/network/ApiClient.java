@@ -10,7 +10,6 @@ import com.google.gson.GsonBuilder;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
-import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -32,17 +31,15 @@ public final class ApiClient {
   private ApiClient(Context context) {
     this.tokenStore = TokenStore.getInstance(context);
 
-    HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-    logging.setLevel(BuildConfig.DEBUG
-        ? HttpLoggingInterceptor.Level.BODY
-        : HttpLoggingInterceptor.Level.NONE);
-
-    OkHttpClient httpClient = new OkHttpClient.Builder()
+    OkHttpClient.Builder http = new OkHttpClient.Builder()
         .addInterceptor(new AuthInterceptor(tokenStore))
-        .addInterceptor(logging)
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build();
+        .readTimeout(15, TimeUnit.SECONDS);
+    if (BuildConfig.DEBUG) {
+      // Release builds log nothing; debug never logs credentials.
+      http.addInterceptor(DebugLogging.create());
+    }
+    OkHttpClient httpClient = http.build();
 
     Gson gson = new GsonBuilder().create();
 

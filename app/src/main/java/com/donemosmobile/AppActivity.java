@@ -1,5 +1,6 @@
 package com.donemosmobile;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 
@@ -31,5 +32,22 @@ public abstract class AppActivity extends AppCompatActivity {
     getWindow().setStatusBarColor(AppColors.BACKGROUND);
     WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
         .setAppearanceLightStatusBars(true);
+  }
+
+  /**
+   * Lifecycle guard for asynchronous callbacks: false once the screen is
+   * finishing or destroyed, when results must no longer touch its views.
+   */
+  public boolean isAlive() {
+    return !isFinishing() && !isDestroyed();
+  }
+
+  /** Same guard for views that only hold their host {@link Context}. */
+  public static boolean isAlive(Context context) {
+    if (context instanceof Activity) {
+      Activity activity = (Activity) context;
+      return !activity.isFinishing() && !activity.isDestroyed();
+    }
+    return true;
   }
 }

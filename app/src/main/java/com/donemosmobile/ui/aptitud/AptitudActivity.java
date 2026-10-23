@@ -148,12 +148,12 @@ public class AptitudActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    return StaleResults.isStale(isFinishing() || isDestroyed(), dni, pendingDni);
+    return StaleResults.isStale(!isAlive(), dni, pendingDni);
   }
 
   /** True when the activity is gone or the selected patient is no longer {@code dni}. */
   private boolean isStaleSubmit(String dni) {
-    return StaleResults.isStale(isFinishing() || isDestroyed(), dni,
+    return StaleResults.isStale(!isAlive(), dni,
         selectedPaciente != null ? selectedPaciente.dni : null);
   }
 
@@ -349,6 +349,9 @@ public class AptitudActivity extends AppActivity {
     catalogoRepository.listMotivos(new ApiCallback<List<MotivoDto>>() {
       @Override
       public void onSuccess(List<MotivoDto> data) {
+        if (!isAlive()) {
+          return;
+        }
         motivos = data;
         motivosLoading = false;
         renderMotivos();
@@ -356,6 +359,9 @@ public class AptitudActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (!isAlive()) {
+          return;
+        }
         motivosLoading = false;
         if (motivos == null) {
           motivos = null;

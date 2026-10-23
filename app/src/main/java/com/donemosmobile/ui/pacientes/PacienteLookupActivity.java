@@ -101,7 +101,7 @@ public class PacienteLookupActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
+    return !isAlive() || !dni.equals(pendingDni);
   }
 
   private void search() {
@@ -283,7 +283,7 @@ public class PacienteLookupActivity extends AppActivity {
           public void onSuccess(PacienteDto data) {
             savingCiclo = false;
             // The user may have left the screen while the request was in flight.
-            if (isFinishing() || isDestroyed()) {
+            if (!isAlive()) {
               return;
             }
             if (dialog.isShowing()) {
@@ -315,7 +315,7 @@ public class PacienteLookupActivity extends AppActivity {
 
   private void restoreSaveButton(Button guardar) {
     savingCiclo = false;
-    if (isFinishing() || isDestroyed()) {
+    if (!isAlive()) {
       return;
     }
     guardar.setEnabled(true);

@@ -185,6 +185,9 @@ public class PacientesActivity extends AppActivity {
     repository.create(body, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
+        if (!isAlive()) {
+          return;
+        }
         setSubmitting(false);
         state.hide();
         Toast.makeText(PacientesActivity.this, "Paciente creado", Toast.LENGTH_SHORT).show();
@@ -198,6 +201,9 @@ public class PacientesActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (!isAlive()) {
+          return;
+        }
         setSubmitting(false);
         state.showError(ApiMessages.forType(type, message, "No se pudo crear el paciente"),
             PacientesActivity.this::submit);
@@ -205,6 +211,9 @@ public class PacientesActivity extends AppActivity {
 
       @Override
       public void onValidationError(Map<String, String> fieldErrors) {
+        if (!isAlive()) {
+          return;
+        }
         setSubmitting(false);
         state.hide();
         applyFieldErrors(fieldErrors);

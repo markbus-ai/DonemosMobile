@@ -220,7 +220,7 @@ public class TurnosActivity extends AppActivity {
 
   /** True when the screen is gone, the form is open, or a newer list request won. */
   private boolean isListStale(int generation) {
-    return isFinishing() || isDestroyed() || generation != listGeneration
+    return !isAlive() || generation != listGeneration
         || createPanel.getVisibility() == View.VISIBLE;
   }
 
@@ -376,7 +376,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onSuccess(TurnoDto data) {
         updating.remove(id);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         Toast.makeText(TurnosActivity.this, TurnoLabels.ATENDIDO.equals(estado)
@@ -387,7 +387,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onValidationError(Map<String, String> fieldErrors) {
         updating.remove(id);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         // 422 estado: the turno is no longer PENDIENTE (someone else changed it).
@@ -400,7 +400,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onError(ApiError.Type type, String message) {
         updating.remove(id);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         Toast.makeText(TurnosActivity.this, ApiMessages.forType(type, message,
@@ -534,7 +534,7 @@ public class TurnosActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    if (isFinishing() || isDestroyed()) {
+    if (!isAlive()) {
       return true;
     }
     return !dni.equals(pendingDni);
@@ -624,7 +624,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onSuccess(TurnoDto data) {
         setSubmitting(false);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         Toast.makeText(TurnosActivity.this, "Turno registrado", Toast.LENGTH_SHORT).show();
@@ -635,7 +635,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onValidationError(Map<String, String> fieldErrors) {
         setSubmitting(false);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         applyFieldErrors(fieldErrors);
@@ -644,7 +644,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onWarning(TurnoWarningResponse warning) {
         setSubmitting(false);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         handleWarning(warning);
@@ -653,7 +653,7 @@ public class TurnosActivity extends AppActivity {
       @Override
       public void onError(ApiError.Type type, String message) {
         setSubmitting(false);
-        if (isFinishing() || isDestroyed()) {
+        if (!isAlive()) {
           return;
         }
         String text;

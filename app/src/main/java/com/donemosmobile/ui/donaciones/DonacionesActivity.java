@@ -265,12 +265,12 @@ public class DonacionesActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    return StaleResults.isStale(isFinishing() || isDestroyed(), dni, pendingDni);
+    return StaleResults.isStale(!isAlive(), dni, pendingDni);
   }
 
   /** True when the activity is gone or the selected patient is no longer {@code dni}. */
   private boolean isStaleSubmit(String dni) {
-    return StaleResults.isStale(isFinishing() || isDestroyed(), dni,
+    return StaleResults.isStale(!isAlive(), dni,
         selectedPaciente != null ? selectedPaciente.dni : null);
   }
 
@@ -366,6 +366,9 @@ public class DonacionesActivity extends AppActivity {
     catalogoRepository.listTiposDonacion(new ApiCallback<List<TipoDonacionDto>>() {
       @Override
       public void onSuccess(List<TipoDonacionDto> data) {
+        if (!isAlive()) {
+          return;
+        }
         tipos = data;
         tiposLoading = false;
         renderTipos();
@@ -373,6 +376,9 @@ public class DonacionesActivity extends AppActivity {
 
       @Override
       public void onError(ApiError.Type type, String message) {
+        if (!isAlive()) {
+          return;
+        }
         tiposLoading = false;
         renderTipos();
       }
@@ -927,7 +933,7 @@ public class DonacionesActivity extends AppActivity {
           public void onSuccess(AutoexclusionDto data) {
             autoexclusionInFlight = false;
             autoexclusionRegistered = true;
-            if (isFinishing() || isDestroyed()) {
+            if (!isAlive()) {
               return;
             }
             successNote.setText("Autoexclusión registrada y confidencial.");
@@ -939,7 +945,7 @@ public class DonacionesActivity extends AppActivity {
           @Override
           public void onValidationError(Map<String, String> fieldErrors) {
             autoexclusionInFlight = false;
-            if (isFinishing() || isDestroyed()) {
+            if (!isAlive()) {
               return;
             }
             autoexclusionButton.setEnabled(true);
@@ -949,7 +955,7 @@ public class DonacionesActivity extends AppActivity {
           @Override
           public void onError(ApiError.Type type, String message) {
             autoexclusionInFlight = false;
-            if (isFinishing() || isDestroyed()) {
+            if (!isAlive()) {
               return;
             }
             autoexclusionButton.setEnabled(true);

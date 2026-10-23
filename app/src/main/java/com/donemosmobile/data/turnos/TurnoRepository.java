@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.auth.SessionInvalidator;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -15,7 +16,6 @@ import com.donemosmobile.data.network.WarningCallback;
 import com.donemosmobile.data.network.dto.CreateTurnoRequest;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.data.network.dto.TurnoWarningResponse;
-import com.donemosmobile.ui.auth.SessionExpired;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
@@ -38,9 +38,8 @@ public class TurnoRepository {
   private final ApiCalls calls;
 
   public TurnoRepository(Context context) {
-    Context appContext = context.getApplicationContext();
     this.api = ApiClient.get(context).turnos();
-    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
+    this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
   /**

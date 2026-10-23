@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.data.auth.SessionInvalidator;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -14,7 +15,6 @@ import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.PacientePageDto;
-import com.donemosmobile.ui.auth.SessionExpired;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -44,9 +44,8 @@ public class PacienteRepository {
   private static final Gson EXPLICIT_NULLS = new GsonBuilder().serializeNulls().create();
 
   public PacienteRepository(Context context) {
-    Context appContext = context.getApplicationContext();
     this.api = ApiClient.get(context).pacientes();
-    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
+    this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
   /** Busca un paciente por DNI. 404 responde {@link ApiError.Type#NOT_FOUND}. */
