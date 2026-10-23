@@ -62,9 +62,10 @@ public class AppNavBar extends LinearLayout {
       LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
           0, dp(52), 1);
       final int position = i;
+      // Navigation-only bar: the highlight always marks the screen that owns
+      // it. Selecting on tap left a stale highlight once that activity was
+      // reordered back to the front.
       item.setOnClickListener(v -> {
-        selected = position;
-        refresh();
         if (listener != null) {
           listener.onItemSelected(position);
         }

@@ -29,16 +29,25 @@ public class AppButton extends MaterialButton {
 
       case OUTLINED:
         setStrokeColor(android.content.res.ColorStateList.valueOf(AppColors.PRIMARY));
+        setStrokeWidth(dp(1));
         setTextColor(AppColors.TEXT_ACCENT);
         setBackgroundTintList(android.content.res.ColorStateList.valueOf(0));
+        removeShadow();
         break;
 
       case TEXT:
         setStrokeWidth(0);
         setTextColor(AppColors.TEXT_ACCENT);
         setBackgroundTintList(android.content.res.ColorStateList.valueOf(0));
+        removeShadow();
         break;
     }
+  }
+
+  /** The filled-button shadow shows as a grey box around a transparent button. */
+  private void removeShadow() {
+    setElevation(0);
+    setStateListAnimator(null);
   }
 
   private int dp(int value) {

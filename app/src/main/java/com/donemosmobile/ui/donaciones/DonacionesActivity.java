@@ -305,13 +305,13 @@ public class DonacionesActivity extends AppActivity {
   }
 
   /**
-   * Posicion actual del donante para el panel del paciente. Sin donaciones
-   * registradas (los tres contadores nulos) se explica en vez de mostrar
-   * guiones.
+   * Posicion actual del donante para el panel del paciente. Contadores nulos
+   * significan que no hay posición de ciclo registrada, no que no haya
+   * donaciones: pueden existir donaciones previas sin ciclo.
    */
   private String currentPositionText(Integer ciclo, Integer serie, Integer donacion) {
     if (ciclo == null && serie == null && donacion == null) {
-      return "Sin donaciones registradas todavía";
+      return "Sin posición de ciclo registrada (la próxima será 1·1·1)";
     }
     return "Ciclo actual: " + cycleValue(ciclo) + " · Serie " + cycleValue(serie)
         + " · Donación " + cycleValue(donacion);
