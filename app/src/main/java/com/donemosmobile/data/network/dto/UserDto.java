@@ -26,6 +26,13 @@ public class UserDto {
   @SerializedName("sede_id")
   public Long sedeId;
 
+  /** Zona name; set for an admin de zona (and for staff whose sede has one). */
+  @SerializedName("zona")
+  public String zona;
+
+  @SerializedName("zona_id")
+  public Long zonaId;
+
   /** Nombre listo para mostrar, con fallbacks si la API no manda todos los campos. */
   public String displayName() {
     if (nombre != null && !nombre.isEmpty()) {

@@ -21,6 +21,7 @@ public final class SessionStore {
   private static final String KEY_NOMBRE = "user_nombre";
   private static final String KEY_ROL = "user_rol";
   private static final String KEY_SEDE = "user_sede";
+  private static final String KEY_ZONA = "user_zona";
 
   private static volatile SessionStore instance;
 
@@ -55,6 +56,7 @@ public final class SessionStore {
         .putString(KEY_NOMBRE, user.nombre)
         .putString(KEY_ROL, user.rol)
         .putString(KEY_SEDE, user.sede)
+        .putString(KEY_ZONA, user.zona)
         .apply();
   }
 
@@ -65,6 +67,7 @@ public final class SessionStore {
     String nombre = prefs.getString(KEY_NOMBRE, null);
     String rol = prefs.getString(KEY_ROL, null);
     String sede = prefs.getString(KEY_SEDE, null);
+    String zona = prefs.getString(KEY_ZONA, null);
     if (username == null && nombre == null && rol == null && sede == null) {
       return null;
     }
@@ -73,6 +76,7 @@ public final class SessionStore {
     user.nombre = nombre;
     user.rol = rol;
     user.sede = sede;
+    user.zona = zona;
     return user;
   }
 

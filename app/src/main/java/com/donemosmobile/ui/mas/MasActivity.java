@@ -9,6 +9,7 @@ import android.widget.TextView;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.local.SessionStore;
 import com.donemosmobile.data.network.dto.UserDto;
+import com.donemosmobile.ui.RoleLabels;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.auth.SessionActions;
 import com.donemosmobile.ui.components.AppButton;
@@ -21,7 +22,7 @@ import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
 
 /**
- * Sección "Más": muestra el personal logueado (usuario, rol y sede) y permite
+ * Sección "Más": muestra el personal logueado (usuario, rol y sede o zona) y permite
  * cerrar sesión. Si no hay usuario cacheado, muestra lo disponible e igual
  * ofrece la salida.
  */
@@ -68,8 +69,12 @@ public class MasActivity extends AppActivity {
     }
 
     addLine(column, "Usuario", user != null ? user.username : null);
-    addLine(column, "Rol", user != null ? user.rol : null);
-    addLine(column, "Sede", user != null ? user.sede : null);
+    addLine(column, "Rol", user != null ? RoleLabels.label(user.rol) : null);
+    // An admin de zona works across sedes: show the zona instead of one sede.
+    String rol = user != null ? user.rol : null;
+    String zona = user != null ? user.zona : null;
+    addLine(column, RoleLabels.scopeLabel(rol, zona),
+        user != null ? RoleLabels.scopeValue(rol, user.sede, zona) : null);
 
     if (user == null) {
       TextView hint = new TextView(this);
