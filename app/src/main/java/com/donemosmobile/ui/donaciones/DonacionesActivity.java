@@ -29,6 +29,7 @@ import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.AptitudLabels;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
+import com.donemosmobile.ui.components.ForceDialog;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
 import com.donemosmobile.ui.components.ErrorText;
@@ -140,6 +141,9 @@ public class DonacionesActivity extends AppActivity {
   private String selectedTipoBolsa = "doble";
   private String selectedBrazo = "izquierdo";
   private boolean submitting;
+  /** Messages of the last 409, restated in the override confirmation. */
+  private List<String> lastWarnings = new ArrayList<>();
+  private static final String FORZAR_LABEL = "Forzar con autorización…";
   /** DNI of the latest lookup; responses for any other DNI are ignored. */
   private String pendingDni;
   private boolean autoexclusionInFlight;
@@ -600,13 +604,14 @@ public class DonacionesActivity extends AppActivity {
 
     TextView warningNote = new TextView(this);
     warningNote.setText("Forzar deja registrada una autorización extraordinaria "
-        + "auditada con tu usuario para este donante.");
+        + "auditada con tu usuario y un motivo obligatorio.");
     warningNote.setTextSize(12);
     warningNote.setTextColor(AppColors.TEXT_SECONDARY);
     warningPanel.body().addView(warningNote, Ui.matchWrap(this, AppSpacing.SM));
 
-    forzarButton = warningPanel.addAction("Forzar con autorización", AppButton.Style.FILLED,
-        v -> submit(true), AppSpacing.SM);
+    // Outlined, not filled: overriding the rules is the exception, not the next step.
+    forzarButton = warningPanel.addAction(FORZAR_LABEL, AppButton.Style.OUTLINED,
+        v -> confirmForce(), AppSpacing.SM);
     root.addView(warningPanel, Ui.matchWrap(this, AppSpacing.MD));
 
     successPanel = new StatusPanel(this, "Donación registrada", AppColors.SURFACE);
@@ -645,6 +650,24 @@ public class DonacionesActivity extends AppActivity {
   // --- Submit ---
 
   private void submit(boolean forzar) {
+    submit(forzar, null);
+  }
+
+  /** Opens the audited override confirmation for the last 409 warnings. */
+  private void confirmForce() {
+    if (submitting || lastWarnings.isEmpty()) {
+      return;
+    }
+    // Same input checks as a normal submit: forcing never skips validate().
+    clearErrors();
+    if (!validate()) {
+      return;
+    }
+    ForceDialog.show(this, "¿Forzar la donación?", lastWarnings, "Forzar y registrar",
+        motivo -> submit(true, motivo));
+  }
+
+  private void submit(boolean forzar, String motivo) {
     if (submitting) {
       return;
     }
@@ -658,7 +681,7 @@ public class DonacionesActivity extends AppActivity {
     setSubmitting(true);
     state.hide();
 
-    donacionRepository.create(buildRequest(forzar), new DonacionRepository.Callback<DonacionDto>() {
+    donacionRepository.create(buildRequest(forzar, motivo), new DonacionRepository.Callback<DonacionDto>() {
       @Override
       public void onSuccess(DonacionDto data) {
         setSubmitting(false);
@@ -688,7 +711,7 @@ public class DonacionesActivity extends AppActivity {
     });
   }
 
-  private CreateDonacionRequest buildRequest(boolean forzar) {
+  private CreateDonacionRequest buildRequest(boolean forzar, String motivo) {
     CreateDonacionRequest body = new CreateDonacionRequest();
     body.pacienteId = selectedPaciente != null ? selectedPaciente.id : null;
     body.tipoId = selectedTipo != null ? selectedTipo.id : null;
@@ -727,6 +750,8 @@ public class DonacionesActivity extends AppActivity {
     }
 
     body.forzar = forzar ? Boolean.TRUE : null;
+    // The API requires motivo (5..500) whenever forzar is true; it lands in the audit.
+    body.motivo = forzar ? motivo : null;
     return body;
   }
 
@@ -801,7 +826,9 @@ public class DonacionesActivity extends AppActivity {
 
   private void showWarning(DonacionWarningResponse warnings) {
     warningList.removeAllViews();
-    for (String message : warnings.messages()) {
+    lastWarnings = warnings.messages();
+    forzarButton.setVisibility(lastWarnings.isEmpty() ? View.GONE : View.VISIBLE);
+    for (String message : lastWarnings) {
       TextView item = new TextView(this);
       item.setText("• " + message);
       item.setTextSize(14);
@@ -1000,7 +1027,7 @@ public class DonacionesActivity extends AppActivity {
     }
     if (forzarButton != null) {
       forzarButton.setEnabled(!value);
-      forzarButton.setText(value ? "Guardando…" : "Forzar con autorización");
+      forzarButton.setText(value ? "Guardando…" : FORZAR_LABEL);
     }
   }
 
@@ -1025,6 +1052,11 @@ public class DonacionesActivity extends AppActivity {
           break;
         }
       }
+    }
+    if (errors.containsKey("motivo")) {
+      // Backend copy for the audited override motivo (Spanish, 5..500).
+      formError.show(errors.get("motivo"));
+      handled = true;
     }
     if (errors.containsKey("signos_clinicos")) {
       clinicalError.show(errors.get("signos_clinicos"));

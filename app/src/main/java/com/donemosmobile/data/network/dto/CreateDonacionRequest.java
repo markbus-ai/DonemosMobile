@@ -85,6 +85,10 @@ public class CreateDonacionRequest {
   @SerializedName("forzar")
   public Boolean forzar;
 
+  /** Mandatory with {@code forzar=true} (5..500 chars); stored in the audit. */
+  @SerializedName("motivo")
+  public String motivo;
+
   /** Una unidad de componente. La cantidad es la cantidad de filas. */
   public static class Componente {
 
