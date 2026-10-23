@@ -7,6 +7,7 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -43,6 +44,8 @@ public class SelectGroup extends LinearLayout {
     status.setPadding(0, AppSpacing.dp(AppSpacing.XS, getResources()), 0, 0);
     status.setClickable(true);
     status.setFocusable(true);
+    status.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    A11y.touchableButton(status, null);
     status.setVisibility(GONE);
     addView(status);
 

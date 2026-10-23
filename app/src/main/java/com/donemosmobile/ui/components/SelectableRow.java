@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 
 import androidx.appcompat.widget.AppCompatTextView;
 
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -31,6 +32,9 @@ public class SelectableRow extends AppCompatTextView {
     setClickable(true);
     setFocusable(true);
     setOnClickListener(listener);
+    setSelected(selected);
+    setGravity(android.view.Gravity.CENTER_VERTICAL);
+    A11y.touchableButton(this, null);
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     params.topMargin = AppSpacing.dp(AppSpacing.XS, getResources());

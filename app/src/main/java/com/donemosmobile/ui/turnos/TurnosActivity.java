@@ -16,6 +16,7 @@ import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.data.turnos.TurnoRepository;
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
 import com.donemosmobile.ui.TurnoLabels;
 import com.donemosmobile.ui.Ui;
@@ -146,6 +147,8 @@ public class TurnosActivity extends AppActivity {
     nuevo.setClickable(true);
     nuevo.setFocusable(true);
     nuevo.setOnClickListener(v -> showCreatePanel());
+    nuevo.setGravity(Gravity.CENTER);
+    A11y.touchableButton(nuevo, "Nuevo turno");
     header.action(nuevo);
 
     return header;

@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.donemosmobile.ui.auth.SessionActions;
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -53,6 +54,8 @@ public class HomeHeader extends LinearLayout {
     logout.setClickable(true);
     logout.setFocusable(true);
     logout.setOnClickListener(v -> SessionActions.logout(context));
+    logout.setGravity(Gravity.CENTER);
+    A11y.touchableButton(logout, "Cerrar sesión");
     row.addView(logout);
 
     View dot = new View(context);

@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -72,6 +73,8 @@ public class ScreenHeader extends LinearLayout {
     back.setClickable(true);
     back.setFocusable(true);
     back.setOnClickListener(listener);
+    back.setGravity(Gravity.CENTER_VERTICAL);
+    A11y.touchableButton(back, "Volver");
     addView(back, 0);
     return this;
   }

@@ -19,6 +19,7 @@ import com.donemosmobile.ui.aptitud.AptitudActivity;
 import com.donemosmobile.ui.donaciones.DonacionesActivity;
 import com.donemosmobile.ui.pacientes.PacienteLookupActivity;
 import com.donemosmobile.ui.pacientes.PacientesActivity;
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
@@ -73,7 +74,7 @@ public class HomeContent extends LinearLayout {
         AppSpacing.dp(AppSpacing.MD, getResources()), 0);
     searchPill.setBackground(Ui.rounded(context, AppColors.SURFACE, 28));
     searchPill.addView(search, new LayoutParams(
-        0, AppSpacing.dp(44, getResources()), 1));
+        0, AppSpacing.dp(A11y.MIN_TOUCH_DP, getResources()), 1));
 
     // La píldora abre el buscador por DNI: no buscar en el teclado todavía.
     search.setFocusable(false);
@@ -82,6 +83,7 @@ public class HomeContent extends LinearLayout {
     searchPill.setClickable(true);
     searchPill.setFocusable(true);
     searchPill.setOnClickListener(v -> navigate(context, PacienteLookupActivity.class));
+    A11y.touchableButton(searchPill, "Buscar paciente por DNI");
 
     LinearLayout searchWrapper = new LinearLayout(context);
     searchWrapper.setPadding(
@@ -300,6 +302,7 @@ public class HomeContent extends LinearLayout {
     tile.setClickable(true);
     tile.setFocusable(true);
     tile.setOnClickListener(listener);
+    A11y.touchableButton(tile, enabled ? text : text + ", próximamente");
 
     // Ripple
     android.util.TypedValue outValue = new android.util.TypedValue();

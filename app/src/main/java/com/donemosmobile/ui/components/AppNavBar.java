@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.theme.AppColors;
 
 /**
@@ -69,6 +70,7 @@ public class AppNavBar extends LinearLayout {
         }
       });
 
+      A11y.asButton(item, labels[i]);
       items[i] = item;
       row.addView(item, params);
     }
@@ -88,9 +90,11 @@ public class AppNavBar extends LinearLayout {
   private void refresh() {
     for (int i = 0; i < items.length; i++) {
       if (i == selected) {
+        items[i].setSelected(true);
         items[i].setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         items[i].setTextColor(AppColors.TEXT_ACCENT);
       } else {
+        items[i].setSelected(false);
         items[i].setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         items[i].setTextColor(AppColors.TEXT_SECONDARY);
       }

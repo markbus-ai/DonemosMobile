@@ -14,6 +14,7 @@ import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
 import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
@@ -126,10 +127,10 @@ public class PacientesActivity extends AppActivity {
         v -> selectSexo("M"));
     sexoFemenino = new AppButton(this, "Femenino", AppButton.Style.OUTLINED,
         v -> selectSexo("F"));
-    row.addView(sexoMasculino, new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
+    row.addView(sexoMasculino, new LinearLayout.LayoutParams(0, Ui.dp(this, A11y.MIN_TOUCH_DP), 1));
     View gap = new View(this);
     row.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, AppSpacing.SM), 1));
-    row.addView(sexoFemenino, new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
+    row.addView(sexoFemenino, new LinearLayout.LayoutParams(0, Ui.dp(this, A11y.MIN_TOUCH_DP), 1));
     root.addView(row, rowParams);
 
     renderSexo();
@@ -154,6 +155,9 @@ public class PacientesActivity extends AppActivity {
         selected ? AppColors.TEXT_ACCENT : 0));
     button.setStrokeColor(ColorStateList.valueOf(AppColors.PRIMARY));
     button.setTextColor(selected ? AppColors.TEXT_ON_PRIMARY : AppColors.TEXT_ACCENT);
+    // MaterialButton already has the Button role; expose the toggle state too.
+    button.setSelected(selected);
+    A11y.asButton(button, null);
   }
 
   private void submit() {

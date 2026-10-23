@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -41,6 +42,7 @@ public class FormField extends LinearLayout {
     field.setBackground(Ui.rounded(context, AppColors.SURFACE, 16));
     field.setClickable(true);
     field.setFocusable(true);
+    A11y.asButton(field, null);
 
     TextView labelView = new TextView(context);
     labelView.setText(label);

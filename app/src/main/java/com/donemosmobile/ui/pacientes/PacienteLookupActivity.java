@@ -15,6 +15,7 @@ import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
+import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
 import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
@@ -186,7 +187,7 @@ public class PacienteLookupActivity extends AppActivity {
     AppButton edit = new AppButton(this, "Editar ciclo", AppButton.Style.OUTLINED,
         v -> promptEditCiclo(paciente));
     LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 44));
+        ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, A11y.MIN_TOUCH_DP));
     editParams.topMargin = Ui.dp(this, AppSpacing.SM);
     resultContainer.addView(edit, editParams);
 
