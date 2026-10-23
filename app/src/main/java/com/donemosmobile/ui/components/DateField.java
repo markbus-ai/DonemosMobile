@@ -5,12 +5,16 @@ import android.content.Context;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.datepicker.CalendarConstraints;
+import com.google.android.material.datepicker.CompositeDateValidator;
+import com.google.android.material.datepicker.DateValidatorPointBackward;
 import com.google.android.material.datepicker.DateValidatorPointForward;
 import com.google.android.material.datepicker.MaterialDatePicker;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -26,6 +30,8 @@ public class DateField extends FormField {
   private final String pickerTag;
   private OnDateSelected listener;
   private boolean futureOnly;
+  /** Years ahead of today that stay selectable; 0 means no upper bound. */
+  private int maxYearsAhead;
   private boolean pickerOpen;
 
   public DateField(Context context, String label, boolean mediumValue, FragmentActivity host,
@@ -42,6 +48,11 @@ public class DateField extends FormField {
     this.futureOnly = futureOnly;
   }
 
+  /** Disables every day after today + {@code years} (the API caps turnos at 1 year). */
+  public void setMaxYearsAhead(int years) {
+    this.maxYearsAhead = Math.max(0, years);
+  }
+
   public void setOnDateSelected(OnDateSelected listener) {
     this.listener = listener;
   }
@@ -54,15 +65,25 @@ public class DateField extends FormField {
     }
     MaterialDatePicker.Builder<Long> builder = MaterialDatePicker.Builder.datePicker()
         .setTitleText(pickerTitle);
-    if (futureOnly) {
+    if (futureOnly || maxYearsAhead > 0) {
       long today = todayUtcMidnight();
-      builder.setSelection(today)
-          .setCalendarConstraints(new CalendarConstraints.Builder()
-              .setStart(today)
-              .setOpenAt(today)
-              // from(today) keeps today selectable; now() would disable it.
-              .setValidator(DateValidatorPointForward.from(today))
-              .build());
+      CalendarConstraints.Builder constraints = new CalendarConstraints.Builder().setOpenAt(today);
+      List<CalendarConstraints.DateValidator> validators = new ArrayList<>();
+      if (futureOnly) {
+        builder.setSelection(today);
+        constraints.setStart(today);
+        // from(today) keeps today selectable; now() would disable it.
+        validators.add(DateValidatorPointForward.from(today));
+      }
+      if (maxYearsAhead > 0) {
+        long last = yearsAheadUtcMidnight(today, maxYearsAhead);
+        constraints.setEnd(last);
+        // before(last) keeps the last day itself selectable.
+        validators.add(DateValidatorPointBackward.before(last));
+      }
+      constraints.setValidator(validators.size() == 1
+          ? validators.get(0) : CompositeDateValidator.allOf(validators));
+      builder.setCalendarConstraints(constraints.build());
     }
     MaterialDatePicker<Long> picker = builder.build();
     picker.addOnPositiveButtonClickListener(selection -> {
@@ -85,6 +106,13 @@ public class DateField extends FormField {
     utc.clear();
     utc.set(local.get(Calendar.YEAR), local.get(Calendar.MONTH),
         local.get(Calendar.DAY_OF_MONTH));
+    return utc.getTimeInMillis();
+  }
+
+  private static long yearsAheadUtcMidnight(long todayUtc, int years) {
+    Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    utc.setTimeInMillis(todayUtc);
+    utc.add(Calendar.YEAR, years);
     return utc.getTimeInMillis();
   }
 

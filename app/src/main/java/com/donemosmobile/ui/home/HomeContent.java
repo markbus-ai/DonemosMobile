@@ -244,7 +244,7 @@ public class HomeContent extends LinearLayout {
         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
     TextView estado = new TextView(context);
-    estado.setText(turno.estado != null ? turno.estado : "");
+    estado.setText(TurnoLabels.estadoLabel(turno.estado));
     estado.setTextSize(12);
     estado.setTextColor(TurnoLabels.estadoColor(turno.estado));
     row.addView(estado);

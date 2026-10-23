@@ -38,6 +38,11 @@ public class TurnoRepository {
     default void onValidationError(@NonNull java.util.Map<String, String> fieldErrors) {
       onError(ApiError.Type.CLIENT, null);
     }
+
+    /** 409 rule envelope of {@code POST /api/turnos}. Falls back to onError. */
+    default void onWarning(@NonNull TurnoWarningResponse warning) {
+      onError(ApiError.Type.CLIENT, warning.message);
+    }
   }
 
   private final TurnoApi api;
@@ -58,8 +63,25 @@ public class TurnoRepository {
    */
   public void list(@Nullable String fecha, @Nullable Long pacienteId,
       final Callback<List<TurnoDto>> callback) {
-    final String key = cacheKey(fecha, pacienteId);
-    api.index(fecha, pacienteId).enqueue(new retrofit2.Callback<List<TurnoDto>>() {
+    fetch(api.index(fecha, null, pacienteId), cacheKey(fecha, pacienteId), callback);
+  }
+
+  /** Lists turnos from {@code desde} ({@code YYYY-MM-DD}) onwards, ordered by fecha/hora. */
+  public void listDesde(@NonNull String desde, final Callback<List<TurnoDto>> callback) {
+    fetch(api.index(null, desde, null), desdeKey(desde), callback);
+  }
+
+  /** Last cached {@link #listDesde} result, or {@code null}. */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  public List<TurnoDto> getCachedDesde(@NonNull String desde) {
+    Object value = DataCache.getInstance().get(desdeKey(desde));
+    return value instanceof List ? (List<TurnoDto>) value : null;
+  }
+
+  private void fetch(Call<List<TurnoDto>> request, final String key,
+      final Callback<List<TurnoDto>> callback) {
+    request.enqueue(new retrofit2.Callback<List<TurnoDto>>() {
       @Override
       public void onResponse(@NonNull Call<List<TurnoDto>> call,
           @NonNull Response<List<TurnoDto>> response) {
@@ -115,6 +137,10 @@ public class TurnoRepository {
     });
   }
 
+  private String desdeKey(String desde) {
+    return "turnos:desde:" + desde;
+  }
+
   private String cacheKey(@Nullable String fecha, @Nullable Long pacienteId) {
     return "turnos:" + (fecha != null ? fecha : "all")
         + ":" + (pacienteId != null ? pacienteId : "all");
@@ -131,6 +157,13 @@ public class TurnoRepository {
           return;
         }
         ApiError.Body error = ApiError.read(response);
+        if (response.code() == 409) {
+          TurnoWarningResponse warning = parseWarning(error);
+          if (warning != null && (warning.warning || !warning.codes().isEmpty())) {
+            callback.onWarning(warning);
+            return;
+          }
+        }
         if (response.code() == 422 && !error.fieldErrors.isEmpty()) {
           callback.onValidationError(error.fieldErrors);
           return;
@@ -143,6 +176,48 @@ public class TurnoRepository {
         callback.onError(ApiError.Type.NETWORK, t.getMessage());
       }
     });
+  }
+
+  /**
+   * Moves a PENDIENTE turno to {@code ATENDIDO} or {@code CANCELADO}. Any other
+   * origin state answers 422 {@code estado}, routed to onValidationError.
+   */
+  public void updateEstado(long id, @NonNull String estado, final Callback<TurnoDto> callback) {
+    java.util.Map<String, String> body = new java.util.HashMap<>();
+    body.put("estado", estado);
+    api.update(id, body).enqueue(new retrofit2.Callback<TurnoDto>() {
+      @Override
+      public void onResponse(@NonNull Call<TurnoDto> call,
+          @NonNull Response<TurnoDto> response) {
+        if (response.isSuccessful()) {
+          callback.onSuccess(response.body());
+          return;
+        }
+        ApiError.Body error = ApiError.read(response);
+        if (response.code() == 422 && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
+        }
+        handleError(response.code(), error, callback);
+      }
+
+      @Override
+      public void onFailure(@NonNull Call<TurnoDto> call, @NonNull Throwable t) {
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+      }
+    });
+  }
+
+  @Nullable
+  private TurnoWarningResponse parseWarning(ApiError.Body error) {
+    if (error.raw == null) {
+      return null;
+    }
+    try {
+      return gson.fromJson(error.raw, TurnoWarningResponse.class);
+    } catch (JsonSyntaxException | IllegalStateException e) {
+      return null;
+    }
   }
 
   private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {

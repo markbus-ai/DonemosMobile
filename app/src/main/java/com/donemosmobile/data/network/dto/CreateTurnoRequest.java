@@ -20,6 +20,14 @@ public class CreateTurnoRequest {
   @SerializedName("tipo_id")
   public final Long tipoId;
 
+  /** Only sent to override a forcible 409; Gson omits it when null. */
+  @SerializedName("forzar")
+  public Boolean forzar;
+
+  /** Mandatory with {@code forzar=true} (max 500 chars); stored in the audit. */
+  @SerializedName("motivo")
+  public String motivo;
+
   public CreateTurnoRequest(long pacienteId, String fecha, String hora, Long tipoId) {
     this.pacienteId = pacienteId;
     this.fecha = fecha;
