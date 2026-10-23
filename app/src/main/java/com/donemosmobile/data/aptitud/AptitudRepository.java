@@ -9,6 +9,7 @@ import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.UpdateAptitudRequest;
@@ -37,8 +38,10 @@ public class AptitudRepository {
 
   private final PacienteApi api;
   private final TokenStore tokenStore;
+  private final Context appContext;
 
   public AptitudRepository(Context context) {
+    this.appContext = context.getApplicationContext();
     ApiClient client = ApiClient.get(context);
     this.api = client.pacientes();
     this.tokenStore = client.tokenStore();
@@ -59,14 +62,13 @@ public class AptitudRepository {
           callback.onSuccess(response.body());
           return;
         }
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
-          Map<String, String> fields = ApiError.fieldErrors(response);
-          if (!fields.isEmpty()) {
-            callback.onValidationError(fields);
-            return;
-          }
+        ApiError.Body error = ApiError.read(response);
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
+            && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
         }
-        handleError(response, callback);
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -76,11 +78,12 @@ public class AptitudRepository {
     });
   }
 
-  private <T> void handleError(Response<?> response, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(response.code());
+  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
+    ApiError.Type type = ApiError.fromStatus(code);
     if (type == ApiError.Type.UNAUTHORIZED) {
-      tokenStore.clear();
+      // Central 401 handling: wipe session + cache and route to login.
+      SessionExpired.handle(appContext);
     }
-    callback.onError(type, ApiError.message(response));
+    callback.onError(type, error.message);
   }
 }

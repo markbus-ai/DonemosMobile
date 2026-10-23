@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.DonacionApi;
 import com.donemosmobile.data.network.dto.AutoexclusionDto;
 import com.donemosmobile.data.network.dto.CreateDonacionRequest;
@@ -46,9 +47,11 @@ public class DonacionRepository {
 
   private final DonacionApi api;
   private final TokenStore tokenStore;
+  private final Context appContext;
   private final Gson gson = new Gson();
 
   public DonacionRepository(Context context) {
+    this.appContext = context.getApplicationContext();
     ApiClient client = ApiClient.get(context);
     this.api = client.donaciones();
     this.tokenStore = client.tokenStore();
@@ -69,14 +72,13 @@ public class DonacionRepository {
           callback.onWarning(warnings != null ? warnings : new DonacionWarningResponse());
           return;
         }
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
-          Map<String, String> fields = ApiError.fieldErrors(response);
-          if (!fields.isEmpty()) {
-            callback.onValidationError(fields);
-            return;
-          }
+        ApiError.Body error = ApiError.read(response);
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
+            && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
         }
-        handleError(response, callback);
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -101,14 +103,13 @@ public class DonacionRepository {
           callback.onSuccess(response.body());
           return;
         }
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
-          Map<String, String> fields = ApiError.fieldErrors(response);
-          if (!fields.isEmpty()) {
-            callback.onValidationError(fields);
-            return;
-          }
+        ApiError.Body error = ApiError.read(response);
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
+            && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
         }
-        handleError(response, callback);
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -130,11 +131,12 @@ public class DonacionRepository {
     }
   }
 
-  private <T> void handleError(Response<?> response, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(response.code());
+  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
+    ApiError.Type type = ApiError.fromStatus(code);
     if (type == ApiError.Type.UNAUTHORIZED) {
-      tokenStore.clear();
+      // Central 401 handling: wipe session + cache and route to login.
+      SessionExpired.handle(appContext);
     }
-    callback.onError(type, ApiError.message(response));
+    callback.onError(type, error.message);
   }
 }

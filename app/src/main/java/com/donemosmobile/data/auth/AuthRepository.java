@@ -14,6 +14,7 @@ import com.donemosmobile.data.network.dto.ErrorResponse;
 import com.donemosmobile.data.network.dto.LoginRequest;
 import com.donemosmobile.data.network.dto.LoginResponse;
 import com.donemosmobile.data.network.dto.UserDto;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
@@ -64,8 +65,11 @@ public class AuthRepository {
             LoginResponse body = response.body();
             if (response.isSuccessful() && body != null
                 && body.token != null && !body.token.isEmpty()) {
+              // Never leak cached data from a previous session into this one.
+              DataCache.getInstance().clear();
               tokenStore.saveToken(body.token);
               sessionStore.save(body.user);
+              SessionExpired.reset();
               callback.onSuccess(body.user);
               return;
             }

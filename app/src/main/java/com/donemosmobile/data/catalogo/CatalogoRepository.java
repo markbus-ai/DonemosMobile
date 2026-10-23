@@ -9,6 +9,7 @@ import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.CatalogoApi;
 import com.donemosmobile.data.network.dto.MotivoDto;
 import com.donemosmobile.data.network.dto.TipoDonacionDto;
@@ -35,8 +36,10 @@ public class CatalogoRepository {
 
   private final CatalogoApi api;
   private final TokenStore tokenStore;
+  private final Context appContext;
 
   public CatalogoRepository(Context context) {
+    this.appContext = context.getApplicationContext();
     ApiClient client = ApiClient.get(context);
     this.api = client.catalogo();
     this.tokenStore = client.tokenStore();
@@ -53,7 +56,7 @@ public class CatalogoRepository {
           callback.onSuccess(response.body());
           return;
         }
-        handleError(response, callback);
+        handleError(response.code(), ApiError.read(response), callback);
       }
 
       @Override
@@ -82,7 +85,7 @@ public class CatalogoRepository {
           callback.onSuccess(response.body());
           return;
         }
-        handleError(response, callback);
+        handleError(response.code(), ApiError.read(response), callback);
       }
 
       @Override
@@ -100,11 +103,12 @@ public class CatalogoRepository {
     return value instanceof List ? (List<TipoDonacionDto>) value : null;
   }
 
-  private <T> void handleError(Response<?> response, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(response.code());
+  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
+    ApiError.Type type = ApiError.fromStatus(code);
     if (type == ApiError.Type.UNAUTHORIZED) {
-      tokenStore.clear();
+      // Central 401 handling: wipe session + cache and route to login.
+      SessionExpired.handle(appContext);
     }
-    callback.onError(type, ApiError.message(response));
+    callback.onError(type, error.message);
   }
 }

@@ -9,6 +9,7 @@ import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
@@ -49,6 +50,7 @@ public class PacienteRepository {
 
   private final PacienteApi api;
   private final TokenStore tokenStore;
+  private final Context appContext;
 
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -59,6 +61,7 @@ public class PacienteRepository {
   private static final Gson EXPLICIT_NULLS = new GsonBuilder().serializeNulls().create();
 
   public PacienteRepository(Context context) {
+    this.appContext = context.getApplicationContext();
     ApiClient client = ApiClient.get(context);
     this.api = client.pacientes();
     this.tokenStore = client.tokenStore();
@@ -76,7 +79,7 @@ public class PacienteRepository {
           callback.onSuccess(response.body());
           return;
         }
-        handleError(response, callback);
+        handleError(response.code(), ApiError.read(response), callback);
       }
 
       @Override
@@ -97,36 +100,66 @@ public class PacienteRepository {
   }
 
   /**
-   * Busca por DNI con la relacion {@code aptitud} embebida. El detalle
-   * ({@code GET /api/pacientes/{dni}}) devuelve el modelo crudo, solo
-   * {@code aptitud_id}; el listado con {@code search=DNI} trae el tipo real,
-   * que es lo que la pantalla de aptitud necesita mostrar.
+   * Finds a patient by exact DNI with the {@code aptitud} relation embedded.
+   * Existence comes from the exact detail endpoint ({@code GET
+   * /api/pacientes/{dni}}), so a 404 is authoritative and a DNI is never missed
+   * because a broad search page did not include it. The detail returns only
+   * {@code aptitud_id}; the relation is enriched from the search listing when
+   * it contains the exact match, otherwise the detail is returned as is.
    */
   public void findByDniWithAptitud(String dni, final Callback<PacienteDto> callback) {
+    final String key = cacheKey(dni);
+    api.show(dni).enqueue(new retrofit2.Callback<PacienteDto>() {
+      @Override
+      public void onResponse(@NonNull Call<PacienteDto> call,
+          @NonNull Response<PacienteDto> response) {
+        if (!response.isSuccessful() || response.body() == null) {
+          handleError(response.code(), ApiError.read(response), callback);
+          return;
+        }
+        final PacienteDto detail = response.body();
+        if (detail.aptitud != null) {
+          DataCache.getInstance().put(key, detail);
+          callback.onSuccess(detail);
+          return;
+        }
+        enrichAptitud(dni, detail, callback);
+      }
+
+      @Override
+      public void onFailure(@NonNull Call<PacienteDto> call, @NonNull Throwable t) {
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+      }
+    });
+  }
+
+  private void enrichAptitud(String dni, PacienteDto detail, Callback<PacienteDto> callback) {
     final String key = cacheKey(dni);
     api.index(dni, 50).enqueue(new retrofit2.Callback<PacientePageDto>() {
       @Override
       public void onResponse(@NonNull Call<PacientePageDto> call,
           @NonNull Response<PacientePageDto> response) {
+        PacienteDto result = detail;
         if (response.isSuccessful() && response.body() != null
             && response.body().data != null) {
           for (PacienteDto paciente : response.body().data) {
             if (dni.equals(paciente.dni)) {
-              DataCache.getInstance().put(key, paciente);
-              callback.onSuccess(paciente);
-              return;
+              result = paciente;
+              break;
             }
           }
-          // No vino coincidencia exacta: el paciente no existe.
-          callback.onError(ApiError.Type.NOT_FOUND, null);
+        } else if (response.code() == 401) {
+          handleError(response.code(), ApiError.read(response), callback);
           return;
         }
-        handleError(response, callback);
+        DataCache.getInstance().put(key, result);
+        callback.onSuccess(result);
       }
 
       @Override
       public void onFailure(@NonNull Call<PacientePageDto> call, @NonNull Throwable t) {
-        callback.onError(ApiError.Type.NETWORK, t.getMessage());
+        // The patient exists (detail succeeded): degrade to the detail only.
+        callback.onSuccess(detail);
       }
     });
   }
@@ -150,14 +183,13 @@ public class PacienteRepository {
           return;
         }
         // 422: errores por campo para que la pantalla los pinte inline.
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
-          Map<String, String> fields = ApiError.fieldErrors(response);
-          if (!fields.isEmpty()) {
-            callback.onValidationError(fields);
-            return;
-          }
+        ApiError.Body error = ApiError.read(response);
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
+            && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
         }
-        handleError(response, callback);
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -192,14 +224,13 @@ public class PacienteRepository {
           callback.onSuccess(response.body());
           return;
         }
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT) {
-          Map<String, String> fields = ApiError.fieldErrors(response);
-          if (!fields.isEmpty()) {
-            callback.onValidationError(fields);
-            return;
-          }
+        ApiError.Body error = ApiError.read(response);
+        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
+            && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
         }
-        handleError(response, callback);
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -213,11 +244,12 @@ public class PacienteRepository {
     return value == null ? JsonNull.INSTANCE : new JsonPrimitive(value);
   }
 
-  private <T> void handleError(Response<?> response, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(response.code());
+  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
+    ApiError.Type type = ApiError.fromStatus(code);
     if (type == ApiError.Type.UNAUTHORIZED) {
-      tokenStore.clear();
+      // Central 401 handling: wipe session + cache and route to login.
+      SessionExpired.handle(appContext);
     }
-    callback.onError(type, ApiError.message(response));
+    callback.onError(type, error.message);
   }
 }

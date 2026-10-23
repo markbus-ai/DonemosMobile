@@ -9,6 +9,7 @@ import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.TurnoApi;
 import com.donemosmobile.data.network.dto.CreateTurnoRequest;
 import com.donemosmobile.data.network.dto.TurnoDto;
@@ -16,7 +17,6 @@ import com.donemosmobile.data.network.dto.TurnoWarningResponse;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
-import java.io.IOException;
 import java.util.List;
 
 import retrofit2.Call;
@@ -33,13 +33,20 @@ public class TurnoRepository {
   public interface Callback<T> {
     void onSuccess(@Nullable T data);
     void onError(@NonNull ApiError.Type type, @Nullable String message);
+
+    /** 422 de Laravel: campo -> primer mensaje. Cae a onError por defecto. */
+    default void onValidationError(@NonNull java.util.Map<String, String> fieldErrors) {
+      onError(ApiError.Type.CLIENT, null);
+    }
   }
 
   private final TurnoApi api;
   private final TokenStore tokenStore;
+  private final Context appContext;
   private final Gson gson = new Gson();
 
   public TurnoRepository(Context context) {
+    this.appContext = context.getApplicationContext();
     ApiClient client = ApiClient.get(context);
     this.api = client.turnos();
     this.tokenStore = client.tokenStore();
@@ -61,7 +68,7 @@ public class TurnoRepository {
           callback.onSuccess(response.body());
           return;
         }
-        handleError(response, callback);
+        handleError(response.code(), ApiError.read(response), callback);
       }
 
       @Override
@@ -123,7 +130,12 @@ public class TurnoRepository {
           callback.onSuccess(response.body());
           return;
         }
-        handleError(response, callback);
+        ApiError.Body error = ApiError.read(response);
+        if (response.code() == 422 && !error.fieldErrors.isEmpty()) {
+          callback.onValidationError(error.fieldErrors);
+          return;
+        }
+        handleError(response.code(), error, callback);
       }
 
       @Override
@@ -133,44 +145,31 @@ public class TurnoRepository {
     });
   }
 
-  private <T> void handleError(Response<?> response, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(response.code());
+  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
+    ApiError.Type type = ApiError.fromStatus(code);
     if (type == ApiError.Type.UNAUTHORIZED) {
-      tokenStore.clear();
+      // Central 401 handling: wipe session + cache and route to login.
+      SessionExpired.handle(appContext);
     }
-    callback.onError(type, extractMessage(response));
+    callback.onError(type, extractMessage(error));
   }
 
   /**
-   * Igual que {@link ApiError#message(Response)}, pero priorizando el envelope
-   * de warning de turnos ({@code code}/{@code message}) para que la UI muestre
-   * el motivo real de un 409.
+   * Prefers the turnos warning envelope ({@code code}/{@code message}) so the
+   * UI shows the real reason for a 409, falling back to the standard message.
    */
   @Nullable
-  private String extractMessage(Response<?> response) {
-    if (response.errorBody() == null) {
-      return null;
-    }
-    String raw;
-    try {
-      raw = response.errorBody().string();
-    } catch (IOException e) {
-      return null;
-    }
-    try {
-      TurnoWarningResponse warning = gson.fromJson(raw, TurnoWarningResponse.class);
-      if (warning != null && warning.message != null && !warning.message.isEmpty()) {
-        return warning.message;
+  private String extractMessage(ApiError.Body error) {
+    if (error.raw != null) {
+      try {
+        TurnoWarningResponse warning = gson.fromJson(error.raw, TurnoWarningResponse.class);
+        if (warning != null && warning.message != null && !warning.message.isEmpty()) {
+          return warning.message;
+        }
+      } catch (JsonSyntaxException | IllegalStateException ignored) {
+        // Falls back to the standard parser.
       }
-    } catch (JsonSyntaxException ignored) {
-      // Cae al parser de error estándar.
     }
-    try {
-      com.donemosmobile.data.network.dto.ErrorResponse error =
-          gson.fromJson(raw, com.donemosmobile.data.network.dto.ErrorResponse.class);
-      return error != null ? error.message : null;
-    } catch (JsonSyntaxException e) {
-      return null;
-    }
+    return error.message;
   }
 }

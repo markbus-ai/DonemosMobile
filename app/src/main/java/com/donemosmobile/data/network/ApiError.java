@@ -58,43 +58,61 @@ public final class ApiError {
   }
 
   /**
-   * Extrae los errores de validacion de Laravel ({@code errors:{campo:[...]}})
-   * como un mapa campo -> primer mensaje. Vacio si no vino envelope 422.
+   * Error body parsed once. OkHttp's {@code errorBody()} is a one-shot stream,
+   * so callers must read it a single time and derive everything from here.
    */
-  @NonNull
-  public static Map<String, String> fieldErrors(@NonNull Response<?> response) {
-    Map<String, String> result = new LinkedHashMap<>();
-    if (response.errorBody() == null) {
-      return result;
+  public static final class Body {
+    @Nullable public final String raw;
+    @Nullable public final String message;
+    @NonNull public final Map<String, String> fieldErrors;
+
+    Body(@Nullable String raw, @Nullable String message, @NonNull Map<String, String> fieldErrors) {
+      this.raw = raw;
+      this.message = message;
+      this.fieldErrors = fieldErrors;
     }
-    try {
-      ErrorResponse error = GSON.fromJson(response.errorBody().string(), ErrorResponse.class);
-      if (error == null || error.errors == null) {
-        return result;
-      }
-      for (Map.Entry<String, List<String>> entry : error.errors.entrySet()) {
-        List<String> messages = entry.getValue();
-        if (messages != null && !messages.isEmpty() && messages.get(0) != null) {
-          result.put(entry.getKey(), messages.get(0));
-        }
-      }
-    } catch (IOException | JsonSyntaxException e) {
-      // Envelope no parseable: no hay errores por campo.
-    }
-    return result;
   }
 
-  /** Extrae {@code {"message": "..."}} del errorBody, o null si no se pudo. */
-  @Nullable
-  public static String message(@NonNull Response<?> response) {
-    if (response.errorBody() == null) {
-      return null;
+  /** Reads {@code errorBody()} exactly once and parses message + field errors. */
+  @NonNull
+  public static Body read(@NonNull Response<?> response) {
+    String raw = null;
+    if (response.errorBody() != null) {
+      try {
+        raw = response.errorBody().string();
+      } catch (IOException e) {
+        raw = null;
+      }
     }
-    try {
-      ErrorResponse error = GSON.fromJson(response.errorBody().string(), ErrorResponse.class);
-      return error != null ? error.message : null;
-    } catch (IOException | JsonSyntaxException e) {
-      return null;
+    return parse(raw);
+  }
+
+  /**
+   * Parses a Laravel error envelope ({@code {"message": ..., "errors": {campo: [...]}}}).
+   * Pure function so it can be unit tested on the JVM.
+   */
+  @NonNull
+  public static Body parse(@Nullable String raw) {
+    Map<String, String> fields = new LinkedHashMap<>();
+    String message = null;
+    if (raw != null && !raw.isEmpty()) {
+      try {
+        ErrorResponse error = GSON.fromJson(raw, ErrorResponse.class);
+        if (error != null) {
+          message = error.message;
+          if (error.errors != null) {
+            for (Map.Entry<String, List<String>> entry : error.errors.entrySet()) {
+              List<String> messages = entry.getValue();
+              if (messages != null && !messages.isEmpty() && messages.get(0) != null) {
+                fields.put(entry.getKey(), messages.get(0));
+              }
+            }
+          }
+        }
+      } catch (JsonSyntaxException | IllegalStateException e) {
+        // Body is not a JSON envelope (HTML error page, plain text): no details.
+      }
     }
+    return new Body(raw, message, fields);
   }
 }
