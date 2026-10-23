@@ -4,6 +4,7 @@ import android.content.Context;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.R;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppInput;
 import com.donemosmobile.ui.components.ErrorText;
@@ -24,10 +25,7 @@ final class CycleSection extends LinearLayout {
     Ui.sectionTitle(this, context, "Ciclo de donaciones", AppSpacing.LG);
 
     TextView helper = new TextView(context);
-    helper.setText("La posición en el ciclo (ciclo > serie > donación) se calcula "
-        + "automáticamente al registrar la donación: 5 donaciones por serie y 3 series "
-        + "por ciclo. Dejá los campos vacíos para que la calcule el sistema; completalos "
-        + "solo si necesitás fijar la posición manualmente.");
+    helper.setText(R.string.donacion_ciclo_ayuda);
     AppTypography.caption(helper);
     addView(helper);
 

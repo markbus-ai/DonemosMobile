@@ -10,6 +10,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.R;
 import com.donemosmobile.data.catalogo.CatalogoRepository;
 import com.donemosmobile.data.donaciones.DonacionRepository;
 import com.donemosmobile.data.network.ApiCallback;
@@ -277,8 +278,9 @@ public class DonacionesActivity extends AppActivity {
       return;
     }
     patientName.setText(paciente.displayName());
-    patientDni.setText("DNI " + Ui.safe(paciente.dni));
-    patientAptitud.setText("Aptitud: " + AptitudLabels.current(paciente));
+    patientDni.setText(getString(R.string.paciente_dni, Ui.safe(paciente.dni)));
+    patientAptitud.setText(
+        getString(R.string.paciente_aptitud, AptitudLabels.current(paciente)));
     patientCycle.setText(currentPositionText(
         paciente.cicloActual, paciente.serieActual, paciente.donacionActual));
     patientPanel.setVisibility(View.VISIBLE);
@@ -424,8 +426,7 @@ public class DonacionesActivity extends AppActivity {
     warningPanel.body().addView(warningList);
 
     TextView warningNote = new TextView(this);
-    warningNote.setText("Forzar deja registrada una autorización extraordinaria "
-        + "auditada con tu usuario y un motivo obligatorio.");
+    warningNote.setText(R.string.donacion_forzar_nota);
     warningNote.setTextSize(12);
     warningNote.setTextColor(AppColors.TEXT_SECONDARY);
     warningPanel.body().addView(warningNote, Ui.matchWrap(this, AppSpacing.SM));
@@ -601,7 +602,7 @@ public class DonacionesActivity extends AppActivity {
     autoexclusionRegistered = false;
     String numero = donacion != null && donacion.numeroDonacion != null
         ? donacion.numeroDonacion : "—";
-    successNumber.setText("Nº " + numero);
+    successNumber.setText(getString(R.string.donacion_numero, numero));
 
     Integer ciclo = donacion != null ? donacion.ciclo : null;
     Integer serie = donacion != null ? donacion.serie : null;

@@ -35,6 +35,17 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    lint {
+        // Known findings live in the baseline; anything new fails the build.
+        // Refresh it deliberately with ./gradlew :app:updateLintBaseline.
+        baseline file("lint-baseline.xml")
+        warningsAsErrors true
+        abortOnError true
+        // Upgrade hints change whenever a new release ships upstream: keep them
+        // visible in the report without failing a build nobody changed.
+        informational 'GradleDependency', 'OldTargetApi', 'AndroidGradlePluginVersion'
+    }
 }
 
 dependencies {

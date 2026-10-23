@@ -17,6 +17,7 @@ import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.NumberParsing;
 import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
@@ -255,7 +256,7 @@ public class PacientesActivity extends AppActivity {
     String alturaText = alturaInput.getText();
     if (!alturaText.isEmpty()) {
       // Accepts a decimal comma ("172,5") like the rest of the numeric fields.
-      Double value = Ui.parseDoubleOrNull(alturaText);
+      Double value = NumberParsing.parseDouble(alturaText);
       if (value == null) {
         alturaInput.setError("Altura inválida");
         valid = false;
@@ -269,7 +270,7 @@ public class PacientesActivity extends AppActivity {
   }
 
   private Double parseAltura() {
-    return Ui.parseDoubleOrNull(alturaInput.getText());
+    return NumberParsing.parseDouble(alturaInput.getText());
   }
 
   private void applyFieldErrors(Map<String, String> errors) {

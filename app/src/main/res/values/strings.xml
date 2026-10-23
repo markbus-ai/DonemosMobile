@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">DonemosMobile</string>
     <string name="bullet_item">• %1$s</string>
+    <string name="label_value">%1$s: %2$s</string>
+    <string name="dot_pair">%1$s · %2$s</string>
+    <string name="paciente_dni">DNI %1$s</string>
+    <string name="paciente_aptitud">Aptitud: %1$s</string>
+    <string name="paciente_aptitud_actual">Aptitud actual: %1$s</string>
+    <string name="donacion_numero">Nº %1$s</string>
+    <string name="donacion_ciclo_ayuda">La posición en el ciclo (ciclo > serie > donación) se calcula automáticamente al registrar la donación: 5 donaciones por serie y 3 series por ciclo. Dejá los campos vacíos para que la calcule el sistema; completalos solo si necesitás fijar la posición manualmente.</string>
+    <string name="donacion_forzar_nota">Forzar deja registrada una autorización extraordinaria auditada con tu usuario y un motivo obligatorio.</string>
+    <string name="paciente_ciclo_nota">La posición en el ciclo la calcula el sistema al registrar cada donación; editala solo para fijarla manualmente.</string>
 </resources>

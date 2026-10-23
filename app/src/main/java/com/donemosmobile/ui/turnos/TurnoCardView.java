@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.R;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.TurnoLabels;
@@ -66,7 +67,7 @@ final class TurnoCardView extends AppCard {
     details.addView(paciente);
 
     TextView meta = new TextView(context);
-    meta.setText(turno.sedeLabel() + " · " + turno.tipoLabel());
+    meta.setText(context.getString(R.string.dot_pair, turno.sedeLabel(), turno.tipoLabel()));
     AppTypography.caption(meta);
     details.addView(meta);
 

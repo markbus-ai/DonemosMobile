@@ -97,14 +97,4 @@ public final class Ui {
   public static String blankToNull(String value) {
     return value != null && !value.trim().isEmpty() ? value.trim() : null;
   }
-
-  /** Decimal comma tolerant; null for blank or non-numeric text. */
-  public static Double parseDoubleOrNull(String value) {
-    return NumberParsing.parseDouble(value);
-  }
-
-  /** Whole number; null for blank, fractions or int overflow. */
-  public static Integer parseIntOrNull(String value) {
-    return NumberParsing.parseInt(value);
-  }
 }

@@ -11,6 +11,7 @@ import android.widget.Toast;
 
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.R;
 import com.donemosmobile.data.aptitud.AptitudRepository;
 import com.donemosmobile.data.catalogo.CatalogoRepository;
 import com.donemosmobile.data.network.ApiError;
@@ -228,8 +229,9 @@ public class AptitudActivity extends AppActivity {
       return;
     }
     patientName.setText(paciente.displayName());
-    patientDni.setText("DNI " + Ui.safe(paciente.dni));
-    currentAptitud.setText("Aptitud actual: " + AptitudLabels.current(paciente));
+    patientDni.setText(getString(R.string.paciente_dni, Ui.safe(paciente.dni)));
+    currentAptitud.setText(
+        getString(R.string.paciente_aptitud_actual, AptitudLabels.current(paciente)));
     patientPanel.setVisibility(View.VISIBLE);
     actionPanel.setVisibility(View.VISIBLE);
   }
@@ -364,7 +366,6 @@ public class AptitudActivity extends AppActivity {
         }
         motivosLoading = false;
         if (motivos == null) {
-          motivos = null;
           renderMotivos();
         }
       }

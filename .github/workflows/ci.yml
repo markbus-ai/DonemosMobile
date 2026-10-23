@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push to the same branch or PR supersedes the run in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build, lint and test
@@ -25,3 +30,11 @@ jobs:
 
       - name: Assemble, lint and test
         run: ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
+
+      - name: Upload build reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: app/build/reports
+          if-no-files-found: ignore

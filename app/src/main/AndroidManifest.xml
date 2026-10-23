@@ -4,6 +4,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+        configChanges: screens are built in code and keep no saved instance
+        state, so recreating them on rotation, resize or keyboard changes would
+        wipe half-filled forms and drop in-flight results; they handle those
+        changes in place. density is NOT listed: every size is converted from
+        dp when the views are built, so a display-size change needs the
+        recreate the system does by default to get correct dimensions.
+    -->
     <application
         android:name=".DonemosApp"
         android:allowBackup="true"
@@ -14,7 +22,7 @@
         tools:targetApi="34">
         <activity
             android:name=".DonemosMobileActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,25 +31,25 @@
         </activity>
         <activity
             android:name=".ui.auth.LoginActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard"
             android:exported="false" />
         <activity
             android:name=".ui.pacientes.PacientesActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
         <activity
             android:name=".ui.pacientes.PacienteLookupActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
         <activity
             android:name=".ui.turnos.TurnosActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
         <activity
             android:name=".ui.donaciones.DonacionesActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
         <activity
             android:name=".ui.aptitud.AptitudActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
         <activity
             android:name=".ui.mas.MasActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|density" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard" />
     </application>
 </manifest>

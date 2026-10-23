@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.R;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.local.SessionStore;
 import com.donemosmobile.data.network.dto.UserDto;
@@ -88,7 +89,7 @@ public class MasActivity extends AppActivity {
 
   private void addLine(LinearLayout parent, String label, String value) {
     TextView line = new TextView(this);
-    line.setText(label + ": " + Ui.safe(value));
+    line.setText(getString(R.string.label_value, label, Ui.safe(value)));
     AppTypography.body(line);
     parent.addView(line);
   }

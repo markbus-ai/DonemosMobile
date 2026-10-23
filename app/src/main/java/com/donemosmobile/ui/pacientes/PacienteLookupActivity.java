@@ -13,11 +13,13 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.R;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
+import com.donemosmobile.ui.NumberParsing;
 import com.donemosmobile.ui.NumericBounds;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
@@ -194,8 +196,7 @@ public class PacienteLookupActivity extends AppActivity {
     resultContainer.addView(edit, editParams);
 
     TextView note = new TextView(this);
-    note.setText("La posición en el ciclo la calcula el sistema al registrar cada "
-        + "donación; editala solo para fijarla manualmente.");
+    note.setText(R.string.paciente_ciclo_nota);
     AppTypography.caption(note);
     resultContainer.addView(note, Ui.matchWrap(this, AppSpacing.XS));
   }
@@ -206,7 +207,7 @@ public class PacienteLookupActivity extends AppActivity {
 
   private void addLine(LinearLayout parent, String label, String value) {
     TextView line = new TextView(this);
-    line.setText(label + ": " + value);
+    line.setText(getString(R.string.label_value, label, value));
     AppTypography.body(line);
     parent.addView(line, Ui.matchWrap(this, AppSpacing.XS));
   }
@@ -267,9 +268,9 @@ public class PacienteLookupActivity extends AppActivity {
     guardar.setText("Guardando…");
 
     repository.updateCiclo(paciente.dni,
-        Ui.parseIntOrNull(ciclo.getText()),
-        Ui.parseIntOrNull(serie.getText()),
-        Ui.parseIntOrNull(donacion.getText()),
+        NumberParsing.parseInt(ciclo.getText()),
+        NumberParsing.parseInt(serie.getText()),
+        NumberParsing.parseInt(donacion.getText()),
         new ApiCallback<PacienteDto>() {
           @Override
           public void onSuccess(PacienteDto data) {
