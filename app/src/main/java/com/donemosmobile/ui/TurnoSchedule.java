@@ -8,6 +8,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.function.LongSupplier;
 
 /**
  * Pure date/time rules for booking a turno, mirrored from the API: the fecha
@@ -19,7 +20,22 @@ public final class TurnoSchedule {
   /** Granularity of the suggested next slot, in minutes. */
   public static final int SLOT_MINUTES = 15;
 
+  private static volatile LongSupplier clock = System::currentTimeMillis;
+
   private TurnoSchedule() {}
+
+  /**
+   * Today in API format ({@code YYYY-MM-DD}) in the device time zone, the
+   * same day every screen and the prefetch use as the turnos cache key.
+   */
+  public static String today() {
+    return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(clock.getAsLong()));
+  }
+
+  /** Replaces the clock behind {@link #today()}; {@code null} restores the system clock. */
+  public static void setClock(@Nullable LongSupplier value) {
+    clock = value != null ? value : System::currentTimeMillis;
+  }
 
   /**
    * The first slot strictly after {@code nowHHmm}, rounded up to

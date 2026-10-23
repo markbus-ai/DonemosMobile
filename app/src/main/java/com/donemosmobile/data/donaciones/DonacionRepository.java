@@ -5,6 +5,8 @@ import android.content.Context;
 import androidx.annotation.Nullable;
 
 import com.donemosmobile.data.auth.SessionInvalidator;
+import com.donemosmobile.data.cache.CacheKeys;
+import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
 import com.donemosmobile.data.network.ApiClient;
@@ -38,11 +40,20 @@ public class DonacionRepository {
     this.calls = new ApiCalls(SessionInvalidator::invalidate);
   }
 
-  /** Crea una donacion. 409 -> {@link WarningCallback#onWarning}, 422 -> por campo. */
-  public void create(CreateDonacionRequest body,
+  /**
+   * Crea una donacion para el paciente {@code pacienteDni}. 409 ->
+   * {@link WarningCallback#onWarning}, 422 -> por campo. Al crearse, la ficha
+   * cacheada del paciente queda vieja (posicion del ciclo, ultima donacion), asi
+   * que se invalida y el proximo lookup la vuelve a pedir.
+   */
+  public void create(String pacienteDni, CreateDonacionRequest body,
       final WarningCallback<DonacionDto, DonacionWarningResponse> callback) {
-    calls.enqueueWrite(api.store(body), donacion -> donacion,
-        DonacionRepository::parseWarnings, callback);
+    calls.enqueueWrite(api.store(body), donacion -> {
+      if (pacienteDni != null) {
+        DataCache.getInstance().invalidate(CacheKeys.paciente(pacienteDni));
+      }
+      return donacion;
+    }, DonacionRepository::parseWarnings, callback);
   }
 
   /** Marca la autoexclusion confidencial de una donacion por su numero. */

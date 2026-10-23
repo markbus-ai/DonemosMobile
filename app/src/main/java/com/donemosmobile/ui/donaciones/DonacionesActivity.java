@@ -698,7 +698,7 @@ public class DonacionesActivity extends AppActivity {
     // Bind the result to the patient it was sent for.
     final String submittedDni = selectedPaciente.dni;
 
-    donacionRepository.create(buildRequest(forzar, motivo),
+    donacionRepository.create(submittedDni, buildRequest(forzar, motivo),
         new WarningCallback<DonacionDto, DonacionWarningResponse>() {
       @Override
       public void onSuccess(DonacionDto data) {

@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.donemosmobile.data.auth.SessionInvalidator;
+import com.donemosmobile.data.cache.CacheKeys;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -50,7 +51,7 @@ public class PacienteRepository {
 
   /** Busca un paciente por DNI. 404 responde {@link ApiError.Type#NOT_FOUND}. */
   public void findByDni(String dni, final ApiCallback<PacienteDto> callback) {
-    final String key = cacheKey(dni);
+    final String key = CacheKeys.paciente(dni);
     calls.enqueue(api.show(dni), paciente -> {
       DataCache.getInstance().put(key, paciente);
       return paciente;
@@ -63,8 +64,7 @@ public class PacienteRepository {
    */
   @Nullable
   public PacienteDto getCachedByDni(String dni) {
-    Object value = DataCache.getInstance().get(cacheKey(dni));
-    return value instanceof PacienteDto ? (PacienteDto) value : null;
+    return DataCache.getInstance().get(CacheKeys.paciente(dni), PacienteDto.class);
   }
 
   /**
@@ -76,7 +76,7 @@ public class PacienteRepository {
    * it contains the exact match, otherwise the detail is returned as is.
    */
   public void findByDniWithAptitud(String dni, final ApiCallback<PacienteDto> callback) {
-    final String key = cacheKey(dni);
+    final String key = CacheKeys.paciente(dni);
     calls.enqueue(api.show(dni), paciente -> paciente, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(@Nullable PacienteDto detail) {
@@ -96,7 +96,7 @@ public class PacienteRepository {
   }
 
   private void enrichAptitud(String dni, PacienteDto detail, ApiCallback<PacienteDto> callback) {
-    final String key = cacheKey(dni);
+    final String key = CacheKeys.paciente(dni);
     calls.enqueue(api.index(dni, 50), page -> page, new ApiCallback<PacientePageDto>() {
       @Override
       public void onSuccess(@Nullable PacientePageDto page) {
@@ -128,16 +128,12 @@ public class PacienteRepository {
     });
   }
 
-  private String cacheKey(String dni) {
-    return "paciente:" + dni;
-  }
-
   /** Da de alta un paciente nuevo. 422 responde por campo. */
   public void create(CreatePacienteRequest body, final ApiCallback<PacienteDto> callback) {
     calls.enqueueWrite(api.store(body), paciente -> {
       // Deja la ficha fresca para que la busqueda por DNI sea instantanea.
       if (paciente.dni != null) {
-        DataCache.getInstance().put(cacheKey(paciente.dni), paciente);
+        DataCache.getInstance().put(CacheKeys.paciente(paciente.dni), paciente);
       }
       return paciente;
     }, callback);
@@ -160,7 +156,7 @@ public class PacienteRepository {
     RequestBody request = RequestBody.create(EXPLICIT_NULLS.toJson(body), JSON);
 
     calls.enqueueWrite(api.update(dni, request), paciente -> {
-      DataCache.getInstance().put(cacheKey(dni), paciente);
+      DataCache.getInstance().put(CacheKeys.paciente(dni), paciente);
       return paciente;
     }, callback);
   }

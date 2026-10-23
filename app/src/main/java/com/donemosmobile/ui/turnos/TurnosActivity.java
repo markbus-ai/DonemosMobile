@@ -176,7 +176,7 @@ public class TurnosActivity extends AppActivity {
     listContainer.removeAllViews();
     createPanel.setVisibility(View.GONE);
     final int generation = ++listGeneration;
-    final String desde = hoy();
+    final String desde = TurnoSchedule.today();
 
     // Cache-first (stale-while-revalidate): si ya hay datos, pintalos al toque
     // y refresca en 2do plano sin mostrar el spinner.
@@ -239,7 +239,7 @@ public class TurnosActivity extends AppActivity {
 
   private TextView buildDayHeader(String fecha) {
     TextView header = new TextView(this);
-    header.setText(fecha.equals(hoy()) ? "Hoy" : TurnoSchedule.display(fecha));
+    header.setText(fecha.equals(TurnoSchedule.today()) ? "Hoy" : TurnoSchedule.display(fecha));
     AppTypography.caption(header);
     header.setTypeface(android.graphics.Typeface.create(
         "sans-serif-medium", android.graphics.Typeface.NORMAL));
@@ -334,7 +334,7 @@ public class TurnosActivity extends AppActivity {
         ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, A11y.MIN_TOUCH_DP)));
 
     // A future turno cannot have been attended yet.
-    boolean canAttend = turno.fecha == null || turno.fecha.compareTo(hoy()) <= 0;
+    boolean canAttend = turno.fecha == null || turno.fecha.compareTo(TurnoSchedule.today()) <= 0;
     if (canAttend) {
       AppButton atender = new AppButton(this, busy ? "Guardando…" : "Atender",
           AppButton.Style.OUTLINED, v -> confirmEstado(turno, TurnoLabels.ATENDIDO));
@@ -352,7 +352,7 @@ public class TurnosActivity extends AppActivity {
     if (turno.id == null || updating.contains(turno.id)) {
       return;
     }
-    String when = (turno.fecha != null && !turno.fecha.equals(hoy())
+    String when = (turno.fecha != null && !turno.fecha.equals(TurnoSchedule.today())
         ? TurnoSchedule.display(turno.fecha) + " " : "hoy ") + turno.horaCorta();
     boolean atender = TurnoLabels.ATENDIDO.equals(estado);
     String message = turno.pacienteLabel() + ", " + when + ".\n\n" + (atender
@@ -413,7 +413,7 @@ public class TurnosActivity extends AppActivity {
 
   /** Repaints the current list from cache so the in-flight card shows its busy state. */
   private void loadTurnosKeepingScroll() {
-    List<TurnoDto> cached = turnoRepository.getCachedDesde(hoy());
+    List<TurnoDto> cached = turnoRepository.getCachedDesde(TurnoSchedule.today());
     if (cached != null && !cached.isEmpty() && createPanel.getVisibility() != View.VISIBLE) {
       renderTurnos(cached);
     }
@@ -569,12 +569,12 @@ public class TurnosActivity extends AppActivity {
       horaField.error().show("Elegí la hora del turno");
       valid = false;
     }
-    if (selectedFecha != null && selectedFecha.compareTo(hoy()) < 0) {
+    if (selectedFecha != null && selectedFecha.compareTo(TurnoSchedule.today()) < 0) {
       fechaField.error().show("La fecha del turno no puede ser anterior a hoy");
       valid = false;
-    } else if (selectedFecha != null && TurnoSchedule.isBeyondMax(selectedFecha, hoy())) {
+    } else if (selectedFecha != null && TurnoSchedule.isBeyondMax(selectedFecha, TurnoSchedule.today())) {
       fechaField.error().show("La fecha del turno no puede ser posterior al "
-          + TurnoSchedule.display(TurnoSchedule.maxFecha(hoy())));
+          + TurnoSchedule.display(TurnoSchedule.maxFecha(TurnoSchedule.today())));
       valid = false;
     } else if (!checkHoraHoy()) {
       valid = false;
@@ -590,7 +590,7 @@ public class TurnosActivity extends AppActivity {
    * valid slot. Returns {@code true} when the picked time is acceptable.
    */
   private boolean checkHoraHoy() {
-    if (selectedFecha == null || selectedHora == null || !selectedFecha.equals(hoy())) {
+    if (selectedFecha == null || selectedHora == null || !selectedFecha.equals(TurnoSchedule.today())) {
       return true;
     }
     String now = horaActual();
@@ -757,11 +757,6 @@ public class TurnosActivity extends AppActivity {
     if (formError != null) {
       formError.hide();
     }
-  }
-
-  /** Fecha de hoy en formato de API ({@code YYYY-MM-DD}). */
-  private String hoy() {
-    return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
   }
 
   /** Current local time as {@code HH:mm}, comparable with the picked hour. */

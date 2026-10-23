@@ -3,6 +3,7 @@ package com.donemosmobile.data.aptitud;
 import android.content.Context;
 
 import com.donemosmobile.data.auth.SessionInvalidator;
+import com.donemosmobile.data.cache.CacheKeys;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -33,7 +34,7 @@ public class AptitudRepository {
   public void update(String dni, UpdateAptitudRequest body, final ApiCallback<PacienteDto> callback) {
     calls.enqueueWrite(api.updateAptitud(dni, body), paciente -> {
       // Deja la ficha actualizada para que el lookup por DNI la muestre.
-      DataCache.getInstance().put("paciente:" + dni, paciente);
+      DataCache.getInstance().put(CacheKeys.paciente(dni), paciente);
       return paciente;
     }, callback);
   }

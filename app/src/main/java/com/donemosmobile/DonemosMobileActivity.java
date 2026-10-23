@@ -6,7 +6,6 @@ import android.os.Bundle;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.auth.AuthRepository;
-import com.donemosmobile.data.cache.Prefetcher;
 import com.donemosmobile.data.network.dto.UserDto;
 import com.donemosmobile.ui.auth.LoginActivity;
 import com.donemosmobile.ui.home.Home;

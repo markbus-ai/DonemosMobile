@@ -1,9 +1,13 @@
 package com.donemosmobile.data.cache;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.LongSupplier;
 
 /**
  * Cache en memoria de alcance aplicacion para datos de red.
@@ -15,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Vive solo en memoria (sin disco): si muere el proceso se pierde. Se vacia
  * al cerrar sesion con {@link #clear()} para no filtrar datos entre usuarios.
+ * Las claves salen de {@link CacheKeys}.
  */
 public final class DataCache {
 
@@ -25,9 +30,12 @@ public final class DataCache {
 
   private final Map<String, Entry> entries = new ConcurrentHashMap<>();
   private final long staleMs;
+  private final LongSupplier clock;
 
-  private DataCache(long staleMs) {
+  /** @param clock current time in milliseconds; injectable for tests. */
+  DataCache(long staleMs, @NonNull LongSupplier clock) {
     this.staleMs = staleMs;
+    this.clock = clock;
   }
 
   public static DataCache getInstance() {
@@ -36,7 +44,7 @@ public final class DataCache {
       synchronized (DataCache.class) {
         local = instance;
         if (local == null) {
-          local = new DataCache(DEFAULT_STALE_MS);
+          local = new DataCache(DEFAULT_STALE_MS, System::currentTimeMillis);
           instance = local;
         }
       }
@@ -53,20 +61,41 @@ public final class DataCache {
       entries.remove(key);
       return;
     }
-    entries.put(key, new Entry(value, System.currentTimeMillis()));
+    entries.put(key, new Entry(value, clock.getAsLong()));
   }
 
-  /** Devuelve el valor cacheado o {@code null} si no hay nada para esa clave. */
+  /** Valor cacheado de ese tipo, o {@code null} si no hay o es de otro tipo. */
   @Nullable
-  public Object get(String key) {
+  public <T> T get(String key, @NonNull Class<T> type) {
     Entry entry = entries.get(key);
-    return entry != null ? entry.value : null;
+    return entry != null && type.isInstance(entry.value) ? type.cast(entry.value) : null;
+  }
+
+  /**
+   * Lista cacheada cuyos elementos son todos de {@code elementType}, como copia
+   * nueva; {@code null} si no hay lista o algun elemento es de otro tipo.
+   */
+  @Nullable
+  public <E> List<E> getList(String key, @NonNull Class<E> elementType) {
+    Entry entry = entries.get(key);
+    if (entry == null || !(entry.value instanceof List)) {
+      return null;
+    }
+    List<?> raw = (List<?>) entry.value;
+    List<E> typed = new ArrayList<>(raw.size());
+    for (Object item : raw) {
+      if (item != null && !elementType.isInstance(item)) {
+        return null;
+      }
+      typed.add(elementType.cast(item));
+    }
+    return typed;
   }
 
   /** {@code true} si hay valor y todavia no paso el umbral de vencimiento. */
   public boolean isFresh(String key) {
     Entry entry = entries.get(key);
-    return entry != null && (System.currentTimeMillis() - entry.timestamp) < staleMs;
+    return entry != null && (clock.getAsLong() - entry.timestamp) < staleMs;
   }
 
   /** Borra una clave puntual. */

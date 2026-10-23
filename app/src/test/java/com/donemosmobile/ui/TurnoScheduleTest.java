@@ -44,4 +44,17 @@ public class TurnoScheduleTest {
     assertEquals("22/10/2027", TurnoSchedule.display("2027-10-22"));
     assertEquals("x", TurnoSchedule.display("x"));
   }
+
+  @Test
+  public void todayFollowsTheInjectedClock() {
+    java.util.Calendar noon = java.util.Calendar.getInstance();
+    noon.clear();
+    noon.set(2026, java.util.Calendar.OCTOBER, 23, 12, 0);
+    TurnoSchedule.setClock(noon::getTimeInMillis);
+    try {
+      assertEquals("2026-10-23", TurnoSchedule.today());
+    } finally {
+      TurnoSchedule.setClock(null);
+    }
+  }
 }

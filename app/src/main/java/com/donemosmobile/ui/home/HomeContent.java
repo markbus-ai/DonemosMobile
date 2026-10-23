@@ -16,6 +16,7 @@ import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.data.turnos.TurnoRepository;
 import com.donemosmobile.ui.TurnoLabels;
+import com.donemosmobile.ui.TurnoSchedule;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.aptitud.AptitudActivity;
 import com.donemosmobile.ui.donaciones.DonacionesActivity;
@@ -27,11 +28,8 @@ import com.donemosmobile.ui.theme.AppSpacing;
 import com.donemosmobile.ui.theme.AppTypography;
 import com.donemosmobile.ui.turnos.TurnosActivity;
 
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 public class HomeContent extends LinearLayout {
 
@@ -163,7 +161,7 @@ public class HomeContent extends LinearLayout {
     if (recentContainer == null) {
       return;
     }
-    final String hoy = hoy();
+    final String hoy = TurnoSchedule.today();
     List<TurnoDto> cached = turnoRepository.getCachedList(hoy, null);
     if (cached != null && !cached.isEmpty()) {
       renderRecent(cached);
@@ -272,10 +270,6 @@ public class HomeContent extends LinearLayout {
         return message != null && !message.isEmpty()
             ? message : "No se pudo cargar la actividad";
     }
-  }
-
-  private String hoy() {
-    return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
   }
 
   private String greetingForNow() {

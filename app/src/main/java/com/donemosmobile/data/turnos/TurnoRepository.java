@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.donemosmobile.data.auth.SessionInvalidator;
+import com.donemosmobile.data.cache.CacheKeys;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -48,20 +49,18 @@ public class TurnoRepository {
    */
   public void list(@Nullable String fecha, @Nullable Long pacienteId,
       final ApiCallback<List<TurnoDto>> callback) {
-    fetch(api.index(fecha, null, pacienteId), cacheKey(fecha, pacienteId), callback);
+    fetch(api.index(fecha, null, pacienteId), CacheKeys.turnos(fecha, pacienteId), callback);
   }
 
   /** Lists turnos from {@code desde} ({@code YYYY-MM-DD}) onwards, ordered by fecha/hora. */
   public void listDesde(@NonNull String desde, final ApiCallback<List<TurnoDto>> callback) {
-    fetch(api.index(null, desde, null), desdeKey(desde), callback);
+    fetch(api.index(null, desde, null), CacheKeys.turnosDesde(desde), callback);
   }
 
   /** Last cached {@link #listDesde} result, or {@code null}. */
   @Nullable
-  @SuppressWarnings("unchecked")
   public List<TurnoDto> getCachedDesde(@NonNull String desde) {
-    Object value = DataCache.getInstance().get(desdeKey(desde));
-    return value instanceof List ? (List<TurnoDto>) value : null;
+    return DataCache.getInstance().getList(CacheKeys.turnosDesde(desde), TurnoDto.class);
   }
 
   private void fetch(Call<List<TurnoDto>> request, final String key,
@@ -77,15 +76,13 @@ public class TurnoRepository {
    * nada. La usa la pantalla para pintar al instante mientras revalida.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   public List<TurnoDto> getCachedList(@Nullable String fecha, @Nullable Long pacienteId) {
-    Object value = DataCache.getInstance().get(cacheKey(fecha, pacienteId));
-    return value instanceof List ? (List<TurnoDto>) value : null;
+    return DataCache.getInstance().getList(CacheKeys.turnos(fecha, pacienteId), TurnoDto.class);
   }
 
   /** {@code true} si el cache de esa lista sigue fresco (dentro del umbral). */
   public boolean isCachedListFresh(@Nullable String fecha, @Nullable Long pacienteId) {
-    return DataCache.getInstance().isFresh(cacheKey(fecha, pacienteId));
+    return DataCache.getInstance().isFresh(CacheKeys.turnos(fecha, pacienteId));
   }
 
   /**
@@ -107,15 +104,6 @@ public class TurnoRepository {
         // Prefetch best-effort: si falla, la pantalla lo reintenta al abrir.
       }
     });
-  }
-
-  private String desdeKey(String desde) {
-    return "turnos:desde:" + desde;
-  }
-
-  private String cacheKey(@Nullable String fecha, @Nullable Long pacienteId) {
-    return "turnos:" + (fecha != null ? fecha : "all")
-        + ":" + (pacienteId != null ? pacienteId : "all");
   }
 
   /** Crea un turno. Un 409 trae el mensaje de negocio (capacidad, intervalo). */

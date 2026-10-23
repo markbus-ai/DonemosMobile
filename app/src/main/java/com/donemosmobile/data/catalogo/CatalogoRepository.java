@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.Nullable;
 
 import com.donemosmobile.data.auth.SessionInvalidator;
+import com.donemosmobile.data.cache.CacheKeys;
 import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiCalls;
@@ -22,9 +23,6 @@ import java.util.List;
  */
 public class CatalogoRepository {
 
-  private static final String MOTIVOS_KEY = "motivos";
-  private static final String TIPOS_DONACION_KEY = "tipos_donacion";
-
   private final CatalogoApi api;
   private final ApiCalls calls;
 
@@ -36,32 +34,28 @@ public class CatalogoRepository {
   /** Lista los motivos y deja el resultado cacheado. */
   public void listMotivos(final ApiCallback<List<MotivoDto>> callback) {
     calls.enqueue(api.motivos(), body -> {
-      DataCache.getInstance().put(MOTIVOS_KEY, body);
+      DataCache.getInstance().put(CacheKeys.MOTIVOS, body);
       return body;
     }, callback);
   }
 
   /** Motivos cacheados de la sesion, o {@code null} si todavia no se pidieron. */
   @Nullable
-  @SuppressWarnings("unchecked")
   public List<MotivoDto> getCachedMotivos() {
-    Object value = DataCache.getInstance().get(MOTIVOS_KEY);
-    return value instanceof List ? (List<MotivoDto>) value : null;
+    return DataCache.getInstance().getList(CacheKeys.MOTIVOS, MotivoDto.class);
   }
 
   /** Lista los tipos de donacion y deja el resultado cacheado. */
   public void listTiposDonacion(final ApiCallback<List<TipoDonacionDto>> callback) {
     calls.enqueue(api.tiposDonacion(), body -> {
-      DataCache.getInstance().put(TIPOS_DONACION_KEY, body);
+      DataCache.getInstance().put(CacheKeys.TIPOS_DONACION, body);
       return body;
     }, callback);
   }
 
   /** Tipos de donacion cacheados, o {@code null} si todavia no se pidieron. */
   @Nullable
-  @SuppressWarnings("unchecked")
   public List<TipoDonacionDto> getCachedTiposDonacion() {
-    Object value = DataCache.getInstance().get(TIPOS_DONACION_KEY);
-    return value instanceof List ? (List<TipoDonacionDto>) value : null;
+    return DataCache.getInstance().getList(CacheKeys.TIPOS_DONACION, TipoDonacionDto.class);
   }
 }
