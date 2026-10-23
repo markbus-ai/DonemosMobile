@@ -85,6 +85,9 @@ public class PacientesActivity extends AppActivity {
     nombreInput = Ui.addInput(root, this, "Nombre", InputType.TYPE_CLASS_TEXT, AppSpacing.SM);
     apellidoInput = Ui.addInput(root, this, "Apellido", InputType.TYPE_CLASS_TEXT, AppSpacing.SM);
     telefonoInput = Ui.addInput(root, this, "Teléfono", InputType.TYPE_CLASS_PHONE, AppSpacing.SM);
+    // The API caps the column at 20 characters: never let the user type past it.
+    telefonoInput.getEditText().setFilters(new android.text.InputFilter[] {
+        new android.text.InputFilter.LengthFilter(NumericBounds.TELEFONO_MAX)});
 
     addSexoSelector(root);
 
@@ -234,7 +237,8 @@ public class PacientesActivity extends AppActivity {
       telefonoInput.setError("Ingresá el teléfono");
       valid = false;
     } else if (!NumericBounds.isValidTelefono(telefono)) {
-      telefonoInput.setError("Teléfono inválido: usá entre 6 y 20 dígitos, espacios, ( ) o -");
+      telefonoInput.setError("Teléfono inválido: hasta 20 caracteres entre dígitos, "
+          + "espacios, ( ) o -, con + opcional al inicio");
       valid = false;
     }
 
@@ -284,27 +288,30 @@ public class PacientesActivity extends AppActivity {
     return true;
   }
 
-  /** Traduce el mensaje 422 (en ingles) a un copy espanol por campo. */
+  /** Backend 422 message for the field (Spanish), with a per-field fallback. */
   private String fieldMessage(String field, String backendMessage) {
-    boolean taken = backendMessage != null
-        && backendMessage.toLowerCase(java.util.Locale.ROOT).contains("taken");
+    String fallback;
     switch (field) {
       case "dni":
-        return taken ? "Ya existe un paciente con ese DNI" : "DNI inválido";
+        fallback = "DNI inválido";
+        break;
       case "nombre":
-        return "Nombre inválido";
+        fallback = "Nombre inválido";
+        break;
       case "apellido":
-        return "Apellido inválido";
+        fallback = "Apellido inválido";
+        break;
       case "telefono":
-        return "Teléfono inválido";
-      case "sexo":
-        return "Sexo inválido";
+        fallback = "Teléfono inválido";
+        break;
       case "altura":
-        return "La altura debe ser mayor a 0 y hasta 250 cm";
+        fallback = "La altura debe ser mayor a 0 y hasta 250 cm";
+        break;
       default:
-        return backendMessage != null && !backendMessage.isEmpty()
-            ? backendMessage : "Dato inválido";
+        fallback = "Dato inválido";
+        break;
     }
+    return ApiMessages.fieldOr(backendMessage, fallback);
   }
 
   private void clearForm() {

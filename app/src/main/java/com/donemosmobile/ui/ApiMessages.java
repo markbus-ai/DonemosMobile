@@ -30,6 +30,15 @@ public final class ApiMessages {
     return forType(type, message, fallback, fallback);
   }
 
+  /**
+   * 422 field copy: the API already answers in Spanish (e.g. "Ya existe un
+   * paciente con ese DNI."), so show it as is; the fallback covers a blank one.
+   */
+  public static String fieldOr(String backendMessage, String fallback) {
+    return backendMessage != null && !backendMessage.trim().isEmpty()
+        ? backendMessage.trim() : fallback;
+  }
+
   private static boolean nonEmpty(String value) {
     return value != null && !value.isEmpty();
   }

@@ -73,7 +73,7 @@ public class NumericBoundsTest {
   public void cycleCountersEnforceSerieAndDonacionRanges() {
     assertEquals("Serie debe estar entre 1 y 3", NumericBounds.checkCycle("1", "4", "1"));
     assertEquals("Donación debe estar entre 1 y 5", NumericBounds.checkCycle("1", "1", "6"));
-    assertEquals("Ciclo debe ser mayor o igual a 1", NumericBounds.checkCycle("0", "1", "1"));
+    assertEquals("Ciclo debe estar entre 1 y 1000", NumericBounds.checkCycle("0", "1", "1"));
     assertNotNull(NumericBounds.checkCycle("1", "1", "1.5"));
   }
 
@@ -87,5 +87,19 @@ public class NumericBoundsTest {
     assertTrue(NumericBounds.isValidTelefono("+54 (11) 4444-5555"));
     assertFalse(NumericBounds.isValidTelefono("12345"));
     assertFalse(NumericBounds.isValidTelefono("abc123456"));
+  }
+
+  @Test
+  public void telefonoIsCappedAtTwentyCharsIncludingPlus() {
+    assertTrue(NumericBounds.isValidTelefono("12345678901234567890"));
+    assertTrue(NumericBounds.isValidTelefono("+1234567890123456789"));
+    // The regex alone accepts "+" plus 20 chars; the API column does not.
+    assertFalse(NumericBounds.isValidTelefono("+12345678901234567890"));
+  }
+
+  @Test
+  public void cicloIsCappedAtOneThousand() {
+    assertNull(NumericBounds.checkCycle("1000", "1", "1"));
+    assertEquals("Ciclo debe estar entre 1 y 1000", NumericBounds.checkCycle("1001", "1", "1"));
   }
 }

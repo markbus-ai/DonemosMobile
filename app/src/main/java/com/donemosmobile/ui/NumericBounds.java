@@ -41,7 +41,8 @@ public final class NumericBounds {
   public static final Range DIASTOLICA = new Range("Presión diastólica", "1", "250", "mmHg", true);
   public static final Range FRECUENCIA = new Range("Frecuencia cardíaca", "1", "350", "lpm", true);
   public static final Range PESO = new Range("Peso", "0", "500", "kg", false, true);
-  public static final Range CICLO = new Range("Ciclo", "1", null, "", true);
+  /** Same cap as the API ({@code ciclo} max 1000). */
+  public static final Range CICLO = new Range("Ciclo", "1", "1000", "", true);
   public static final Range SERIE = new Range("Serie", "1", "3", "", true);
   public static final Range DONACION = new Range("Donación", "1", "5", "", true);
 
@@ -81,7 +82,7 @@ public final class NumericBounds {
   }
 
   /**
-   * Validates the manual cycle counters (ciclo &gt;= 1, serie 1-3, donacion
+   * Validates the manual cycle counters (ciclo 1-1000, serie 1-3, donacion
    * 1-5). All three must be filled or all three blank (a blank set resets the
    * cycle); a partial override is rejected like the API does. First error or null.
    */
@@ -111,9 +112,19 @@ public final class NumericBounds {
     return dni != null && DNI.matcher(dni.trim()).matches();
   }
 
-  /** Same phone rule as the API: optional +, digits, spaces, parentheses, dashes. */
+  /** API phone column limit: the regex alone would allow 21 chars with a leading +. */
+  public static final int TELEFONO_MAX = 20;
+
+  /**
+   * Same phone rule as the API: optional +, digits, spaces, parentheses,
+   * dashes, and at most {@link #TELEFONO_MAX} characters in total.
+   */
   public static boolean isValidTelefono(String telefono) {
-    return telefono != null && TELEFONO.matcher(telefono.trim()).matches();
+    if (telefono == null) {
+      return false;
+    }
+    String value = telefono.trim();
+    return value.length() <= TELEFONO_MAX && TELEFONO.matcher(value).matches();
   }
 
   /** Diastolic must be strictly lower than systolic when both are present. */
