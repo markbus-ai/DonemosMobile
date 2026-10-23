@@ -10,6 +10,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.TurnoDto;
 import com.donemosmobile.data.turnos.TurnoRepository;
@@ -169,7 +170,7 @@ public class HomeContent extends LinearLayout {
       renderRecentState("Buscando turnos de hoy…");
     }
 
-    turnoRepository.list(hoy, null, new TurnoRepository.Callback<List<TurnoDto>>() {
+    turnoRepository.list(hoy, null, new ApiCallback<List<TurnoDto>>() {
       @Override
       public void onSuccess(List<TurnoDto> data) {
         renderRecent(data);

@@ -37,7 +37,11 @@ public final class ApiError {
     /** Sin respuesta: timeout, DNS, sin conexión. */
     NETWORK,
     /** Cualquier otra cosa. */
-    UNKNOWN
+    UNKNOWN,
+    /** Login answered 401: wrong user or password (no session to expire). */
+    INVALID_CREDENTIALS,
+    /** Login answered 429: throttled. */
+    TOO_MANY_ATTEMPTS
   }
 
   /** Traduce un status HTTP a {@link Type}. */

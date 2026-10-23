@@ -3,6 +3,8 @@ package com.donemosmobile;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.auth.AuthRepository;
 import com.donemosmobile.data.cache.Prefetcher;
 import com.donemosmobile.data.network.dto.UserDto;
@@ -50,15 +52,15 @@ public class DonemosMobileActivity extends AppActivity {
    * se vuelve al login; si fue un error de red se mantiene la sesión cacheada.
    */
   private void validateSession() {
-    repository.me(new AuthRepository.Callback<UserDto>() {
+    repository.me(new ApiCallback<UserDto>() {
       @Override
       public void onSuccess(UserDto data) {
         // Sesión válida, la Home ya está en pantalla.
       }
 
       @Override
-      public void onError(AuthRepository.ErrorType type, String message) {
-        if (type == AuthRepository.ErrorType.UNAUTHORIZED) {
+      public void onError(ApiError.Type type, String message) {
+        if (type == ApiError.Type.UNAUTHORIZED) {
           goToLogin();
         }
       }

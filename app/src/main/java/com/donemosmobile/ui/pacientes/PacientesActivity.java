@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.CreatePacienteRequest;
@@ -181,7 +182,7 @@ public class PacientesActivity extends AppActivity {
     setSubmitting(true);
     state.showLoading();
 
-    repository.create(body, new PacienteRepository.Callback<PacienteDto>() {
+    repository.create(body, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         setSubmitting(false);

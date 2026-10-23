@@ -3,6 +3,8 @@ package com.donemosmobile.ui.auth;
 import android.content.Context;
 import android.content.Intent;
 
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.auth.AuthRepository;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,14 +25,14 @@ public final class SessionActions {
     if (!LOGGING_OUT.compareAndSet(false, true)) {
       return;
     }
-    new AuthRepository(context).logout(new AuthRepository.Callback<Void>() {
+    new AuthRepository(context).logout(new ApiCallback<Void>() {
       @Override
       public void onSuccess(Void data) {
         goToLogin(context);
       }
 
       @Override
-      public void onError(AuthRepository.ErrorType type, String message) {
+      public void onError(ApiError.Type type, String message) {
         // logout() limpia la sesión local siempre: igual vamos al login.
         goToLogin(context);
       }

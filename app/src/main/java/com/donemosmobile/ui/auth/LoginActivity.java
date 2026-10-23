@@ -9,6 +9,8 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.DonemosMobileActivity;
 import com.donemosmobile.data.auth.AuthRepository;
@@ -97,7 +99,7 @@ public class LoginActivity extends AppActivity {
     }
 
     setLoading(true);
-    repository.login(username, password, new AuthRepository.Callback<UserDto>() {
+    repository.login(username, password, new ApiCallback<UserDto>() {
       @Override
       public void onSuccess(UserDto data) {
         setLoading(false);
@@ -108,7 +110,7 @@ public class LoginActivity extends AppActivity {
       }
 
       @Override
-      public void onError(AuthRepository.ErrorType type, String message) {
+      public void onError(ApiError.Type type, String message) {
         setLoading(false);
         showError(messageFor(type, message));
       }
@@ -122,7 +124,7 @@ public class LoginActivity extends AppActivity {
     finish();
   }
 
-  private String messageFor(AuthRepository.ErrorType type, String message) {
+  private String messageFor(ApiError.Type type, String message) {
     switch (type) {
       case INVALID_CREDENTIALS:
         return "Credenciales inválidas";

@@ -13,6 +13,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.WarningCallback;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.catalogo.CatalogoRepository;
 import com.donemosmobile.data.donaciones.DonacionRepository;
@@ -226,7 +228,7 @@ public class DonacionesActivity extends AppActivity {
     pendingDni = dni;
     picker.setSearching(true);
 
-    pacienteRepository.findByDniWithAptitud(dni, new PacienteRepository.Callback<PacienteDto>() {
+    pacienteRepository.findByDniWithAptitud(dni, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         if (isStale(dni)) {
@@ -361,7 +363,7 @@ public class DonacionesActivity extends AppActivity {
     tipos = null;
     tiposLoading = true;
     renderTipos();
-    catalogoRepository.listTiposDonacion(new CatalogoRepository.Callback<List<TipoDonacionDto>>() {
+    catalogoRepository.listTiposDonacion(new ApiCallback<List<TipoDonacionDto>>() {
       @Override
       public void onSuccess(List<TipoDonacionDto> data) {
         tipos = data;
@@ -690,7 +692,8 @@ public class DonacionesActivity extends AppActivity {
     // Bind the result to the patient it was sent for.
     final String submittedDni = selectedPaciente.dni;
 
-    donacionRepository.create(buildRequest(forzar, motivo), new DonacionRepository.Callback<DonacionDto>() {
+    donacionRepository.create(buildRequest(forzar, motivo),
+        new WarningCallback<DonacionDto, DonacionWarningResponse>() {
       @Override
       public void onSuccess(DonacionDto data) {
         setSubmitting(false);
@@ -919,7 +922,7 @@ public class DonacionesActivity extends AppActivity {
     autoexclusionInFlight = true;
     autoexclusionButton.setEnabled(false);
     donacionRepository.marcarAutoexclusion(createdDonacion.numeroDonacion, motivo,
-        new DonacionRepository.Callback<AutoexclusionDto>() {
+        new ApiCallback<AutoexclusionDto>() {
           @Override
           public void onSuccess(AutoexclusionDto data) {
             autoexclusionInFlight = false;

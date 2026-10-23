@@ -9,17 +9,13 @@ import com.donemosmobile.data.cache.DataCache;
 import com.donemosmobile.data.local.SessionStore;
 import com.donemosmobile.data.local.TokenStore;
 import com.donemosmobile.data.network.ApiClient;
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.AuthApi;
-import com.donemosmobile.data.network.dto.ErrorResponse;
 import com.donemosmobile.data.network.dto.LoginRequest;
 import com.donemosmobile.data.network.dto.LoginResponse;
 import com.donemosmobile.data.network.dto.UserDto;
 import com.donemosmobile.ui.auth.SessionExpired;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-
-import java.io.IOException;
-
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -29,24 +25,9 @@ import retrofit2.Response;
  */
 public class AuthRepository {
 
-  public enum ErrorType {
-    INVALID_CREDENTIALS,
-    TOO_MANY_ATTEMPTS,
-    UNAUTHORIZED,
-    NETWORK,
-    SERVER,
-    UNKNOWN
-  }
-
-  public interface Callback<T> {
-    void onSuccess(@Nullable T data);
-    void onError(@NonNull ErrorType type, @Nullable String message);
-  }
-
   private final AuthApi api;
   private final TokenStore tokenStore;
   private final SessionStore sessionStore;
-  private final Gson gson = new Gson();
 
   public AuthRepository(Context context) {
     ApiClient client = ApiClient.get(context);
@@ -56,7 +37,7 @@ public class AuthRepository {
   }
 
   /** Autentica y persiste el token. Devuelve el usuario en {@code onSuccess}. */
-  public void login(String username, String password, final Callback<UserDto> callback) {
+  public void login(String username, String password, final ApiCallback<UserDto> callback) {
     api.login(new LoginRequest(username, password))
         .enqueue(new retrofit2.Callback<LoginResponse>() {
           @Override
@@ -74,11 +55,11 @@ public class AuthRepository {
               return;
             }
             if (response.code() == 401) {
-              callback.onError(ErrorType.INVALID_CREDENTIALS, extractMessage(response));
+              callback.onError(ApiError.Type.INVALID_CREDENTIALS, extractMessage(response));
               return;
             }
             if (response.code() == 429) {
-              callback.onError(ErrorType.TOO_MANY_ATTEMPTS, extractMessage(response));
+              callback.onError(ApiError.Type.TOO_MANY_ATTEMPTS, extractMessage(response));
               return;
             }
             callback.onError(mapStatus(response.code()), extractMessage(response));
@@ -86,16 +67,16 @@ public class AuthRepository {
 
           @Override
           public void onFailure(@NonNull Call<LoginResponse> call, @NonNull Throwable t) {
-            callback.onError(ErrorType.NETWORK, t.getMessage());
+            callback.onError(ApiError.Type.NETWORK, t.getMessage());
           }
         });
   }
 
   /**
    * Valida la sesión actual contra el backend. Un 401 limpia el token guardado
-   * y responde {@link ErrorType#UNAUTHORIZED}.
+   * y responde {@link ApiError.Type#UNAUTHORIZED}.
    */
-  public void me(final Callback<UserDto> callback) {
+  public void me(final ApiCallback<UserDto> callback) {
     api.me().enqueue(new retrofit2.Callback<UserDto>() {
       @Override
       public void onResponse(@NonNull Call<UserDto> call, @NonNull Response<UserDto> response) {
@@ -107,7 +88,7 @@ public class AuthRepository {
         }
         if (response.code() == 401) {
           clearSession();
-          callback.onError(ErrorType.UNAUTHORIZED, extractMessage(response));
+          callback.onError(ApiError.Type.UNAUTHORIZED, extractMessage(response));
           return;
         }
         callback.onError(mapStatus(response.code()), extractMessage(response));
@@ -115,7 +96,7 @@ public class AuthRepository {
 
       @Override
       public void onFailure(@NonNull Call<UserDto> call, @NonNull Throwable t) {
-        callback.onError(ErrorType.NETWORK, t.getMessage());
+        callback.onError(ApiError.Type.NETWORK, t.getMessage());
       }
     });
   }
@@ -124,7 +105,7 @@ public class AuthRepository {
    * Cierra la sesión. La limpieza local ocurre siempre, aunque el server no
    * responda; el callback se dispara igual para no trabar la UI.
    */
-  public void logout(final Callback<Void> callback) {
+  public void logout(final ApiCallback<Void> callback) {
     api.logout().enqueue(new retrofit2.Callback<Void>() {
       @Override
       public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
@@ -151,20 +132,16 @@ public class AuthRepository {
     return tokenStore.hasToken();
   }
 
-  private ErrorType mapStatus(int code) {
-    return code >= 500 ? ErrorType.SERVER : ErrorType.UNKNOWN;
+  /**
+   * Auth keeps its own coarse mapping: a 401 on login means bad credentials,
+   * not an expired session, and any other 4xx shows the backend copy.
+   */
+  private ApiError.Type mapStatus(int code) {
+    return code >= 500 ? ApiError.Type.SERVER : ApiError.Type.UNKNOWN;
   }
 
   @Nullable
   private String extractMessage(Response<?> response) {
-    if (response.errorBody() == null) {
-      return null;
-    }
-    try {
-      ErrorResponse error = gson.fromJson(response.errorBody().string(), ErrorResponse.class);
-      return error != null ? error.message : null;
-    } catch (IOException | JsonSyntaxException e) {
-      return null;
-    }
+    return ApiError.read(response).message;
   }
 }

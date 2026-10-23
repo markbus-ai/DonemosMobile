@@ -2,22 +2,14 @@ package com.donemosmobile.data.aptitud;
 
 import android.content.Context;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import com.donemosmobile.data.cache.DataCache;
-import com.donemosmobile.data.local.TokenStore;
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.ApiCalls;
 import com.donemosmobile.data.network.ApiClient;
-import com.donemosmobile.data.network.ApiError;
-import com.donemosmobile.ui.auth.SessionExpired;
 import com.donemosmobile.data.network.PacienteApi;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.UpdateAptitudRequest;
-
-import java.util.Map;
-
-import retrofit2.Call;
-import retrofit2.Response;
+import com.donemosmobile.ui.auth.SessionExpired;
 
 /**
  * Actualiza la aptitud de un paciente ({@code PATCH
@@ -26,64 +18,24 @@ import retrofit2.Response;
  */
 public class AptitudRepository {
 
-  public interface Callback<T> {
-    void onSuccess(@Nullable T data);
-    void onError(@NonNull ApiError.Type type, @Nullable String message);
-
-    /** Errores de validacion por campo (Laravel 422): campo -> mensaje. */
-    default void onValidationError(@NonNull Map<String, String> fieldErrors) {
-      onError(ApiError.Type.CLIENT, null);
-    }
-  }
-
   private final PacienteApi api;
-  private final TokenStore tokenStore;
-  private final Context appContext;
+  private final ApiCalls calls;
 
   public AptitudRepository(Context context) {
-    this.appContext = context.getApplicationContext();
-    ApiClient client = ApiClient.get(context);
-    this.api = client.pacientes();
-    this.tokenStore = client.tokenStore();
+    Context appContext = context.getApplicationContext();
+    this.api = ApiClient.get(context).pacientes();
+    this.calls = new ApiCalls(() -> SessionExpired.handle(appContext));
   }
 
   /**
    * Aplica la nueva aptitud. La respuesta trae la relacion {@code aptitud}
    * embebida, asi que la pantalla puede refrescar el estado sin otro GET.
    */
-  public void update(String dni, UpdateAptitudRequest body, final Callback<PacienteDto> callback) {
-    api.updateAptitud(dni, body).enqueue(new retrofit2.Callback<PacienteDto>() {
-      @Override
-      public void onResponse(@NonNull Call<PacienteDto> call,
-          @NonNull Response<PacienteDto> response) {
-        if (response.isSuccessful() && response.body() != null) {
-          // Deja la ficha actualizada para que el lookup por DNI la muestre.
-          DataCache.getInstance().put("paciente:" + dni, response.body());
-          callback.onSuccess(response.body());
-          return;
-        }
-        ApiError.Body error = ApiError.read(response);
-        if (ApiError.fromStatus(response.code()) == ApiError.Type.CLIENT
-            && !error.fieldErrors.isEmpty()) {
-          callback.onValidationError(error.fieldErrors);
-          return;
-        }
-        handleError(response.code(), error, callback);
-      }
-
-      @Override
-      public void onFailure(@NonNull Call<PacienteDto> call, @NonNull Throwable t) {
-        callback.onError(ApiError.Type.NETWORK, t.getMessage());
-      }
-    });
-  }
-
-  private <T> void handleError(int code, ApiError.Body error, Callback<T> callback) {
-    ApiError.Type type = ApiError.fromStatus(code);
-    if (type == ApiError.Type.UNAUTHORIZED) {
-      // Central 401 handling: wipe session + cache and route to login.
-      SessionExpired.handle(appContext);
-    }
-    callback.onError(type, error.message);
+  public void update(String dni, UpdateAptitudRequest body, final ApiCallback<PacienteDto> callback) {
+    calls.enqueueWrite(api.updateAptitud(dni, body), paciente -> {
+      // Deja la ficha actualizada para que el lookup por DNI la muestre.
+      DataCache.getInstance().put("paciente:" + dni, paciente);
+      return paciente;
+    }, callback);
   }
 }

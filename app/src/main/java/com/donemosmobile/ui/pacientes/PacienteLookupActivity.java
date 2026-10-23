@@ -11,6 +11,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
+import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.PacienteDto;
@@ -123,7 +124,7 @@ public class PacienteLookupActivity extends AppActivity {
 
     pendingDni = dni;
     setSearching(true);
-    repository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
+    repository.findByDni(dni, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         if (isStale(dni)) {
@@ -277,7 +278,7 @@ public class PacienteLookupActivity extends AppActivity {
         Ui.parseIntOrNull(ciclo.getText()),
         Ui.parseIntOrNull(serie.getText()),
         Ui.parseIntOrNull(donacion.getText()),
-        new PacienteRepository.Callback<PacienteDto>() {
+        new ApiCallback<PacienteDto>() {
           @Override
           public void onSuccess(PacienteDto data) {
             savingCiclo = false;

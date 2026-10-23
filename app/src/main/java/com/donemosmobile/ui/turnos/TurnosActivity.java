@@ -9,6 +9,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.donemosmobile.data.network.ApiCallback;
+import com.donemosmobile.data.network.WarningCallback;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.network.ApiError;
 import com.donemosmobile.data.network.dto.CreateTurnoRequest;
@@ -187,7 +189,7 @@ public class TurnosActivity extends AppActivity {
       state.showLoading();
     }
 
-    turnoRepository.listDesde(desde, new TurnoRepository.Callback<List<TurnoDto>>() {
+    turnoRepository.listDesde(desde, new ApiCallback<List<TurnoDto>>() {
       @Override
       public void onSuccess(List<TurnoDto> data) {
         if (isListStale(generation)) {
@@ -370,7 +372,7 @@ public class TurnosActivity extends AppActivity {
       return;
     }
     loadTurnosKeepingScroll();
-    turnoRepository.updateEstado(id, estado, new TurnoRepository.Callback<TurnoDto>() {
+    turnoRepository.updateEstado(id, estado, new ApiCallback<TurnoDto>() {
       @Override
       public void onSuccess(TurnoDto data) {
         updating.remove(id);
@@ -501,7 +503,7 @@ public class TurnosActivity extends AppActivity {
   private void buscarPaciente(String dni) {
     pendingDni = dni;
     pacientePicker.setSearching(true);
-    pacienteRepository.findByDni(dni, new PacienteRepository.Callback<PacienteDto>() {
+    pacienteRepository.findByDni(dni, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         if (isStale(dni)) {
@@ -618,7 +620,7 @@ public class TurnosActivity extends AppActivity {
       body.forzar = Boolean.TRUE;
       body.motivo = motivo;
     }
-    turnoRepository.create(body, new TurnoRepository.Callback<TurnoDto>() {
+    turnoRepository.create(body, new WarningCallback<TurnoDto, TurnoWarningResponse>() {
       @Override
       public void onSuccess(TurnoDto data) {
         setSubmitting(false);

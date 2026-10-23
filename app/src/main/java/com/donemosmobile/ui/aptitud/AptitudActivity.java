@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.AppActivity;
 import com.donemosmobile.data.aptitud.AptitudRepository;
 import com.donemosmobile.data.catalogo.CatalogoRepository;
@@ -162,7 +163,7 @@ public class AptitudActivity extends AppActivity {
     pendingDni = dni;
     picker.setSearching(true);
 
-    pacienteRepository.findByDniWithAptitud(dni, new PacienteRepository.Callback<PacienteDto>() {
+    pacienteRepository.findByDniWithAptitud(dni, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         if (isStale(dni)) {
@@ -345,7 +346,7 @@ public class AptitudActivity extends AppActivity {
     motivosLoading = true;
     renderMotivos();
 
-    catalogoRepository.listMotivos(new CatalogoRepository.Callback<List<MotivoDto>>() {
+    catalogoRepository.listMotivos(new ApiCallback<List<MotivoDto>>() {
       @Override
       public void onSuccess(List<MotivoDto> data) {
         motivos = data;
@@ -451,7 +452,7 @@ public class AptitudActivity extends AppActivity {
     final String submittedDni = selectedPaciente.dni;
 
     aptitudRepository.update(submittedDni, body,
-        new AptitudRepository.Callback<PacienteDto>() {
+        new ApiCallback<PacienteDto>() {
           @Override
           public void onSuccess(PacienteDto data) {
             setSubmitting(false);
