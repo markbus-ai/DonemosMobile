@@ -19,6 +19,7 @@ import com.donemosmobile.data.network.dto.UpdateAptitudRequest;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.ApiMessages;
 import com.donemosmobile.ui.AptitudLabels;
+import com.donemosmobile.ui.StaleResults;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
@@ -146,7 +147,13 @@ public class AptitudActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
+    return StaleResults.isStale(isFinishing() || isDestroyed(), dni, pendingDni);
+  }
+
+  /** True when the activity is gone or the selected patient is no longer {@code dni}. */
+  private boolean isStaleSubmit(String dni) {
+    return StaleResults.isStale(isFinishing() || isDestroyed(), dni,
+        selectedPaciente != null ? selectedPaciente.dni : null);
   }
 
   private void search(String dni) {
@@ -440,12 +447,17 @@ public class AptitudActivity extends AppActivity {
 
     setSubmitting(true);
     state.showLoading();
+    // Bind the result to the patient it was sent for.
+    final String submittedDni = selectedPaciente.dni;
 
-    aptitudRepository.update(selectedPaciente.dni, body,
+    aptitudRepository.update(submittedDni, body,
         new AptitudRepository.Callback<PacienteDto>() {
           @Override
           public void onSuccess(PacienteDto data) {
             setSubmitting(false);
+            if (isStaleSubmit(submittedDni)) {
+              return;
+            }
             state.hide();
             Toast.makeText(AptitudActivity.this, "Aptitud actualizada",
                 Toast.LENGTH_SHORT).show();
@@ -459,6 +471,9 @@ public class AptitudActivity extends AppActivity {
           @Override
           public void onError(ApiError.Type type, String message) {
             setSubmitting(false);
+            if (isStaleSubmit(submittedDni)) {
+              return;
+            }
             state.showError(
                 ApiMessages.forType(type, message, "No se pudo actualizar la aptitud",
                     "No se pudo completar la operación"),
@@ -468,6 +483,9 @@ public class AptitudActivity extends AppActivity {
           @Override
           public void onValidationError(Map<String, String> fieldErrors) {
             setSubmitting(false);
+            if (isStaleSubmit(submittedDni)) {
+              return;
+            }
             state.hide();
             applyFieldErrors(fieldErrors);
           }
@@ -550,6 +568,9 @@ public class AptitudActivity extends AppActivity {
 
   private void setSubmitting(boolean value) {
     submitting = value;
+    if (picker != null) {
+      picker.setLocked(value);
+    }
     if (submitButton != null) {
       submitButton.setEnabled(!value);
       submitButton.setText(value ? "Guardando…" : "Guardar aptitud");

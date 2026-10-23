@@ -26,6 +26,7 @@ import com.donemosmobile.data.network.dto.TipoDonacionDto;
 import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.ui.ApiMessages;
 import com.donemosmobile.ui.NumericBounds;
+import com.donemosmobile.ui.StaleResults;
 import com.donemosmobile.ui.AptitudLabels;
 import com.donemosmobile.ui.Ui;
 import com.donemosmobile.ui.components.AppButton;
@@ -253,7 +254,7 @@ public class DonacionesActivity extends AppActivity {
           return;
         }
         state.showError(
-            ApiMessages.forType(type, message, "No se pudo registrar la donación",
+            ApiMessages.forType(type, message, "No se pudo buscar al donante.",
                 "No se pudo completar la operación"),
             DonacionesActivity.this::search);
       }
@@ -262,7 +263,13 @@ public class DonacionesActivity extends AppActivity {
 
   /** True when the activity is gone or a newer search replaced this one. */
   private boolean isStale(String dni) {
-    return isFinishing() || isDestroyed() || !dni.equals(pendingDni);
+    return StaleResults.isStale(isFinishing() || isDestroyed(), dni, pendingDni);
+  }
+
+  /** True when the activity is gone or the selected patient is no longer {@code dni}. */
+  private boolean isStaleSubmit(String dni) {
+    return StaleResults.isStale(isFinishing() || isDestroyed(), dni,
+        selectedPaciente != null ? selectedPaciente.dni : null);
   }
 
   private void buildPatientPanel(LinearLayout root) {
@@ -680,11 +687,16 @@ public class DonacionesActivity extends AppActivity {
     }
     setSubmitting(true);
     state.hide();
+    // Bind the result to the patient it was sent for.
+    final String submittedDni = selectedPaciente.dni;
 
     donacionRepository.create(buildRequest(forzar, motivo), new DonacionRepository.Callback<DonacionDto>() {
       @Override
       public void onSuccess(DonacionDto data) {
         setSubmitting(false);
+        if (isStaleSubmit(submittedDni)) {
+          return;
+        }
         createdDonacion = data;
         showSuccess(data);
       }
@@ -692,18 +704,27 @@ public class DonacionesActivity extends AppActivity {
       @Override
       public void onWarning(DonacionWarningResponse warnings) {
         setSubmitting(false);
+        if (isStaleSubmit(submittedDni)) {
+          return;
+        }
         showWarning(warnings);
       }
 
       @Override
       public void onValidationError(Map<String, String> fieldErrors) {
         setSubmitting(false);
+        if (isStaleSubmit(submittedDni)) {
+          return;
+        }
         applyFieldErrors(fieldErrors);
       }
 
       @Override
       public void onError(ApiError.Type type, String message) {
         setSubmitting(false);
+        if (isStaleSubmit(submittedDni)) {
+          return;
+        }
         formError.show(
             ApiMessages.forType(type, message, "No se pudo registrar la donación",
                 "No se pudo completar la operación"));
@@ -930,7 +951,7 @@ public class DonacionesActivity extends AppActivity {
             }
             autoexclusionButton.setEnabled(true);
             formError.show(
-                ApiMessages.forType(type, message, "No se pudo registrar la donación",
+                ApiMessages.forType(type, message, "No se pudo registrar la autoexclusión.",
                     "No se pudo completar la operación"));
           }
         });
@@ -1021,6 +1042,9 @@ public class DonacionesActivity extends AppActivity {
 
   private void setSubmitting(boolean value) {
     submitting = value;
+    if (picker != null) {
+      picker.setLocked(value);
+    }
     if (submitButton != null) {
       submitButton.setEnabled(!value);
       submitButton.setText(value ? "Guardando…" : "CONFIRMAR");

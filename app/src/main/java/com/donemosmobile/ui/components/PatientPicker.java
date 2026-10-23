@@ -23,6 +23,8 @@ public class PatientPicker extends LinearLayout {
   private final AppButton search;
   private final String buttonText;
   private boolean searching;
+  private boolean locked;
+  @Nullable private AppButton clear;
 
   public interface Listener {
     void onSearch(String dni);
@@ -76,7 +78,7 @@ public class PatientPicker extends LinearLayout {
     }
 
     if (showClear) {
-      AppButton clear = new AppButton(context, "Limpiar", AppButton.Style.TEXT, v -> {
+      clear = new AppButton(context, "Limpiar", AppButton.Style.TEXT, v -> {
         if (listener != null) {
           listener.onClear();
         }
@@ -89,8 +91,22 @@ public class PatientPicker extends LinearLayout {
   /** Disables "Buscar" while a lookup is in flight so taps cannot stack requests. */
   public void setSearching(boolean searching) {
     this.searching = searching;
-    search.setEnabled(!searching);
+    search.setEnabled(!searching && !locked);
     search.setText(searching ? "Buscando…" : buttonText);
+  }
+
+  /**
+   * Freezes the selection while the screen submits for the selected patient:
+   * the DNI, "Buscar" and "Limpiar" stay disabled so the result cannot land on
+   * another patient.
+   */
+  public void setLocked(boolean locked) {
+    this.locked = locked;
+    dniInput.getEditText().setEnabled(!locked);
+    search.setEnabled(!locked && !searching);
+    if (clear != null) {
+      clear.setEnabled(!locked);
+    }
   }
 
   public AppInput dniInput() {
@@ -107,7 +123,7 @@ public class PatientPicker extends LinearLayout {
   }
 
   private void triggerSearch() {
-    if (searching) {
+    if (searching || locked) {
       return;
     }
     String dni = dniInput.getText();
