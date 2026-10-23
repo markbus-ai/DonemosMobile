@@ -65,7 +65,7 @@ public class ScreenHeader extends LinearLayout {
     TextView back = new TextView(getContext());
     back.setText("\u2039 Volver");
     back.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-    back.setTextColor(AppColors.PRIMARY);
+    back.setTextColor(AppColors.TEXT_ACCENT);
     back.setPadding(0, AppSpacing.dp(AppSpacing.XS, getResources()),
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.XS, getResources()));

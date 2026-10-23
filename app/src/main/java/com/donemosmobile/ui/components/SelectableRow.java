@@ -27,7 +27,7 @@ public class SelectableRow extends AppCompatTextView {
         AppSpacing.dp(AppSpacing.MD, getResources()),
         AppSpacing.dp(AppSpacing.SM, getResources()));
     setBackground(Ui.rounded(context, selected ? AppColors.PRIMARY_TINT : AppColors.SURFACE, 12));
-    setTextColor(selected ? AppColors.PRIMARY : AppColors.TEXT_PRIMARY);
+    setTextColor(selected ? AppColors.TEXT_ACCENT : AppColors.TEXT_PRIMARY);
     setClickable(true);
     setFocusable(true);
     setOnClickListener(listener);

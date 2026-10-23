@@ -23,19 +23,19 @@ public class AppButton extends MaterialButton {
 
     switch (style) {
       case FILLED:
-        setBackgroundTintList(android.content.res.ColorStateList.valueOf(AppColors.PRIMARY));
+        setBackgroundTintList(android.content.res.ColorStateList.valueOf(AppColors.TEXT_ACCENT));
         setTextColor(AppColors.TEXT_ON_PRIMARY);
         break;
 
       case OUTLINED:
         setStrokeColor(android.content.res.ColorStateList.valueOf(AppColors.PRIMARY));
-        setTextColor(AppColors.PRIMARY);
+        setTextColor(AppColors.TEXT_ACCENT);
         setBackgroundTintList(android.content.res.ColorStateList.valueOf(0));
         break;
 
       case TEXT:
         setStrokeWidth(0);
-        setTextColor(AppColors.PRIMARY);
+        setTextColor(AppColors.TEXT_ACCENT);
         setBackgroundTintList(android.content.res.ColorStateList.valueOf(0));
         break;
     }

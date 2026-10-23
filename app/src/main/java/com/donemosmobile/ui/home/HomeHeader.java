@@ -44,7 +44,7 @@ public class HomeHeader extends LinearLayout {
     logout.setText("Salir");
     logout.setTextSize(14);
     logout.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-    logout.setTextColor(AppColors.PRIMARY);
+    logout.setTextColor(AppColors.TEXT_ACCENT);
     logout.setPadding(
         AppSpacing.dp(AppSpacing.SM, getResources()),
         AppSpacing.dp(AppSpacing.XS, getResources()),

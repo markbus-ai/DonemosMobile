@@ -18,14 +18,23 @@ public final class AppColors {
 
   // Text
   public static final int TEXT_PRIMARY = Color.parseColor("#1C1C1E");
-  public static final int TEXT_SECONDARY = Color.parseColor("#8E8E93");
+  // 5.23:1 on white, 4.69:1 on SURFACE (WCAG AA body text).
+  public static final int TEXT_SECONDARY = Color.parseColor("#6C6C70");
   public static final int TEXT_ON_PRIMARY = Color.WHITE;
+  /** Accent used as text or behind white text: 5.27:1 on white (PRIMARY is 3.91:1). */
+  public static final int TEXT_ACCENT = PRIMARY_DARK;
 
   // Divider
   public static final int DIVIDER = Color.parseColor("#E5E5EA");
 
-  // State
+  // State — fills/accents only. WARNING (2.04:1) and SUCCESS (3.16:1) fail as
+  // text on white; use the *_TEXT tokens for anything that must be read.
   public static final int SUCCESS = Color.parseColor("#30A46C");
   public static final int WARNING = Color.parseColor("#F5A524");
-  public static final int ERROR = Color.parseColor("#E5484D");
+  /** Success text: 5.41:1 on white, 4.85:1 on SURFACE. */
+  public static final int SUCCESS_TEXT = Color.parseColor("#18794E");
+  /** Warning text (dark amber): 5.93:1 on white, 5.31:1 on SURFACE. */
+  public static final int WARNING_TEXT = Color.parseColor("#8A5A00");
+  /** Error copy is always text: same as PRIMARY_DARK, 5.27:1 on white. */
+  public static final int ERROR = PRIMARY_DARK;
 }

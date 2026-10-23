@@ -33,7 +33,7 @@ public class ComingSoonView extends LinearLayout {
     badge.setText("PRÓXIMAMENTE");
     badge.setTextSize(12);
     badge.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-    badge.setTextColor(AppColors.PRIMARY);
+    badge.setTextColor(AppColors.TEXT_ACCENT);
     badge.setBackground(rounded(AppColors.PRIMARY_TINT, 20));
     badge.setPadding(
         AppSpacing.dp(AppSpacing.SM, getResources()),

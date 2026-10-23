@@ -94,7 +94,7 @@ public class PacientesActivity extends AppActivity {
     root.addView(state);
 
     successBanner = new TextView(this);
-    successBanner.setTextColor(AppColors.SUCCESS);
+    successBanner.setTextColor(AppColors.SUCCESS_TEXT);
     successBanner.setTextSize(14);
     successBanner.setVisibility(View.GONE);
     root.addView(successBanner, Ui.matchWrap(this, AppSpacing.SM));
@@ -151,9 +151,9 @@ public class PacientesActivity extends AppActivity {
 
   private void applySexoState(AppButton button, boolean selected) {
     button.setBackgroundTintList(ColorStateList.valueOf(
-        selected ? AppColors.PRIMARY : 0));
+        selected ? AppColors.TEXT_ACCENT : 0));
     button.setStrokeColor(ColorStateList.valueOf(AppColors.PRIMARY));
-    button.setTextColor(selected ? AppColors.TEXT_ON_PRIMARY : AppColors.PRIMARY);
+    button.setTextColor(selected ? AppColors.TEXT_ON_PRIMARY : AppColors.TEXT_ACCENT);
   }
 
   private void submit() {

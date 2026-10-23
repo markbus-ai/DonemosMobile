@@ -14,11 +14,11 @@ public final class TurnoLabels {
     }
     switch (estado) {
       case "ATENDIDO":
-        return com.donemosmobile.ui.theme.AppColors.SUCCESS;
+        return com.donemosmobile.ui.theme.AppColors.SUCCESS_TEXT;
       case "CANCELADO":
         return com.donemosmobile.ui.theme.AppColors.ERROR;
       case "PENDIENTE":
-        return com.donemosmobile.ui.theme.AppColors.WARNING;
+        return com.donemosmobile.ui.theme.AppColors.WARNING_TEXT;
       default:
         return com.donemosmobile.ui.theme.AppColors.TEXT_SECONDARY;
     }

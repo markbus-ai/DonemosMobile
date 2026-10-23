@@ -137,7 +137,7 @@ public class TurnosActivity extends AppActivity {
     TextView nuevo = new TextView(this);
     nuevo.setText("+ Nuevo");
     nuevo.setTextSize(15);
-    nuevo.setTextColor(AppColors.PRIMARY);
+    nuevo.setTextColor(AppColors.TEXT_ACCENT);
     nuevo.setPadding(
         Ui.dp(this, AppSpacing.SM),
         Ui.dp(this, AppSpacing.SM),

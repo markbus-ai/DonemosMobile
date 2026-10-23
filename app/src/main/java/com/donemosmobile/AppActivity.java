@@ -22,7 +22,7 @@ public abstract class AppActivity extends AppCompatActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    setTheme(R.style.Theme_MaterialComponents_DayNight_NoActionBar);
+    setTheme(R.style.Theme_MaterialComponents_Light_NoActionBar);
     super.onCreate(savedInstanceState);
   }
 }

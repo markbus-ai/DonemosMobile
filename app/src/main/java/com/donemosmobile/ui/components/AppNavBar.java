@@ -89,7 +89,7 @@ public class AppNavBar extends LinearLayout {
     for (int i = 0; i < items.length; i++) {
       if (i == selected) {
         items[i].setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        items[i].setTextColor(AppColors.PRIMARY);
+        items[i].setTextColor(AppColors.TEXT_ACCENT);
       } else {
         items[i].setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         items[i].setTextColor(AppColors.TEXT_SECONDARY);

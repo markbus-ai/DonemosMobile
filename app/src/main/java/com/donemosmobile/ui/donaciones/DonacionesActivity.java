@@ -473,7 +473,7 @@ public class DonacionesActivity extends AppActivity {
     TextView hint = new TextView(this);
     hint.setText("Donación por aféresis: plaquetas y hematocrito son obligatorios.");
     hint.setTextSize(13);
-    hint.setTextColor(AppColors.WARNING);
+    hint.setTextColor(AppColors.WARNING_TEXT);
     clinicalHint.addView(hint);
     clinicalHint.setVisibility(View.GONE);
     root.addView(clinicalHint);
@@ -613,7 +613,7 @@ public class DonacionesActivity extends AppActivity {
 
     successNumber = new TextView(this);
     successNumber.setTextSize(18);
-    successNumber.setTextColor(AppColors.PRIMARY);
+    successNumber.setTextColor(AppColors.TEXT_ACCENT);
     successNumber.setTypeface(android.graphics.Typeface.create(
         "sans-serif-medium", android.graphics.Typeface.NORMAL));
     successPanel.body().addView(successNumber, Ui.matchWrap(this, AppSpacing.XS));
@@ -625,7 +625,7 @@ public class DonacionesActivity extends AppActivity {
 
     successNote = new TextView(this);
     successNote.setTextSize(13);
-    successNote.setTextColor(AppColors.SUCCESS);
+    successNote.setTextColor(AppColors.SUCCESS_TEXT);
     successNote.setVisibility(View.GONE);
     successPanel.body().addView(successNote);
 
