@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DonemosMobile</string>
+    <string name="bullet_item">• %1$s</string>
 </resources>

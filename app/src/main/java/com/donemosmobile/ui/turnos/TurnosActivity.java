@@ -9,10 +9,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.donemosmobile.data.network.ApiCallback;
-import com.donemosmobile.data.network.WarningCallback;
 import com.donemosmobile.AppActivity;
+import com.donemosmobile.data.network.ApiCallback;
 import com.donemosmobile.data.network.ApiError;
+import com.donemosmobile.data.network.WarningCallback;
 import com.donemosmobile.data.network.dto.CreateTurnoRequest;
 import com.donemosmobile.data.network.dto.PacienteDto;
 import com.donemosmobile.data.network.dto.TurnoDto;
@@ -21,23 +21,14 @@ import com.donemosmobile.data.pacientes.PacienteRepository;
 import com.donemosmobile.data.turnos.TurnoRepository;
 import com.donemosmobile.ui.A11y;
 import com.donemosmobile.ui.ApiMessages;
-import com.donemosmobile.ui.ForceOverride;
 import com.donemosmobile.ui.TurnoLabels;
 import com.donemosmobile.ui.TurnoSchedule;
 import com.donemosmobile.ui.Ui;
-import com.donemosmobile.ui.components.AppButton;
-import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.ConfirmDialog;
-import com.donemosmobile.ui.components.ErrorText;
 import com.donemosmobile.ui.components.ForceDialog;
-import com.donemosmobile.ui.components.DateField;
-import com.donemosmobile.ui.components.FormActions;
-import com.donemosmobile.ui.components.FormField;
-import com.donemosmobile.ui.components.PatientPicker;
 import com.donemosmobile.ui.components.ScreenHeader;
 import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.components.StateView;
-import com.donemosmobile.ui.components.TimeField;
 import com.donemosmobile.ui.navigation.Section;
 import com.donemosmobile.ui.theme.AppColors;
 import com.donemosmobile.ui.theme.AppSpacing;
@@ -47,14 +38,18 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Próximos turnos. Lista los turnos desde hoy ({@code desde}), deja atender o
  * cancelar los pendientes, y crear uno nuevo (paciente por DNI + fecha + hora).
  * Un 409 forzable pide confirmación con motivo; los límites duros bloquean.
+ *
+ * <p>Container: the list cards are {@link TurnoCardView}, the form is
+ * {@link NuevoTurnoPanel} and the 409 decision is {@link TurnoWarningPresenter};
+ * this activity keeps the requests and their callbacks.
  *
  * <p>Mobile-first: una tarea por pantalla, botones grandes, sin tablas largas.
  */
@@ -68,18 +63,8 @@ public class TurnosActivity extends AppActivity {
 
   private StateView state;
   private LinearLayout listContainer;
-  private LinearLayout createPanel;
+  private NuevoTurnoPanel createPanel;
 
-  // Formulario de alta.
-  private PatientPicker pacientePicker;
-  private PacienteDto selectedPaciente;
-  private FormField pacienteField;
-  private DateField fechaField;
-  private TimeField horaField;
-  private String selectedFecha;
-  private String selectedHora;
-  private AppButton confirmarButton;
-  private ErrorText formError;
   private boolean submitting;
   /** Turno ids with a PATCH in flight: their actions stay disabled. */
   private final Set<Long> updating = new HashSet<>();
@@ -127,7 +112,22 @@ public class TurnosActivity extends AppActivity {
 
     LinearLayout content = root.content();
 
-    createPanel = buildCreateForm();
+    createPanel = new NuevoTurnoPanel(this, new NuevoTurnoPanel.Listener() {
+      @Override
+      public void onSearchPaciente(String dni) {
+        buscarPaciente(dni);
+      }
+
+      @Override
+      public void onConfirm() {
+        confirmar();
+      }
+
+      @Override
+      public void onBackToList() {
+        loadTurnos();
+      }
+    });
     createPanel.setVisibility(View.GONE);
     content.addView(createPanel);
 
@@ -233,7 +233,8 @@ public class TurnosActivity extends AppActivity {
         currentDay = day;
         listContainer.addView(buildDayHeader(day));
       }
-      listContainer.addView(buildTurnoCard(turno));
+      listContainer.addView(new TurnoCardView(this, turno, updating.contains(turno.id),
+          this::confirmEstado));
     }
   }
 
@@ -249,103 +250,6 @@ public class TurnosActivity extends AppActivity {
     params.bottomMargin = Ui.dp(this, AppSpacing.XS);
     header.setLayoutParams(params);
     return header;
-  }
-
-  private AppCard buildTurnoCard(TurnoDto turno) {
-    LinearLayout column = new LinearLayout(this);
-    column.setOrientation(LinearLayout.VERTICAL);
-
-    LinearLayout content = new LinearLayout(this);
-    content.setOrientation(LinearLayout.HORIZONTAL);
-    content.setGravity(Gravity.CENTER_VERTICAL);
-    column.addView(content);
-
-    TextView hora = new TextView(this);
-    hora.setText(turno.horaCorta());
-    hora.setTextSize(20);
-    hora.setTextColor(AppColors.TEXT_PRIMARY);
-    hora.setTypeface(android.graphics.Typeface.create(
-        "sans-serif-medium", android.graphics.Typeface.NORMAL));
-    content.addView(hora, new LinearLayout.LayoutParams(
-        Ui.dp(this, 64), ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    LinearLayout details = new LinearLayout(this);
-    details.setOrientation(LinearLayout.VERTICAL);
-
-    TextView paciente = new TextView(this);
-    // El backend embebe la relación; si no vino, el label cae al id.
-    paciente.setText(turno.pacienteLabel());
-    AppTypography.bodyMedium(paciente);
-    details.addView(paciente);
-
-    TextView meta = new TextView(this);
-    meta.setText(metaLine(turno));
-    AppTypography.caption(meta);
-    details.addView(meta);
-
-    content.addView(details, new LinearLayout.LayoutParams(
-        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-    TextView estado = new TextView(this);
-    estado.setText(TurnoLabels.estadoLabel(turno.estado));
-    estado.setTextSize(13);
-    estado.setTextColor(TurnoLabels.estadoColor(turno.estado));
-    estado.setPadding(
-        Ui.dp(this, AppSpacing.SM),
-        Ui.dp(this, AppSpacing.XS),
-        Ui.dp(this, AppSpacing.SM),
-        Ui.dp(this, AppSpacing.XS));
-    content.addView(estado);
-
-    if (TurnoLabels.PENDIENTE.equals(turno.estado) && turno.id != null) {
-      column.addView(buildTurnoActions(turno));
-    }
-
-    AppCard card = new AppCard(this, column);
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    params.bottomMargin = Ui.dp(this, AppSpacing.SM);
-    card.setLayoutParams(params);
-    return card;
-  }
-
-  private String metaLine(TurnoDto turno) {
-    return turno.sedeLabel() + " · " + turno.tipoLabel();
-  }
-
-  /** "Atender" (only for today or earlier) and "Cancelar" for a PENDIENTE turno. */
-  private LinearLayout buildTurnoActions(TurnoDto turno) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(Gravity.END);
-    LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    rowParams.topMargin = Ui.dp(this, AppSpacing.SM);
-    row.setLayoutParams(rowParams);
-
-    boolean busy = updating.contains(turno.id);
-    String who = turno.pacienteLabel() + " · " + turno.horaCorta();
-
-    AppButton cancelar = new AppButton(this, "Cancelar", AppButton.Style.TEXT,
-        v -> confirmEstado(turno, TurnoLabels.CANCELADO));
-    cancelar.setEnabled(!busy);
-    cancelar.setContentDescription("Cancelar turno de " + who);
-    row.addView(cancelar, new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, A11y.MIN_TOUCH_DP)));
-
-    // A future turno cannot have been attended yet.
-    boolean canAttend = turno.fecha == null || turno.fecha.compareTo(TurnoSchedule.today()) <= 0;
-    if (canAttend) {
-      AppButton atender = new AppButton(this, busy ? "Guardando…" : "Atender",
-          AppButton.Style.OUTLINED, v -> confirmEstado(turno, TurnoLabels.ATENDIDO));
-      atender.setEnabled(!busy);
-      atender.setContentDescription("Marcar como atendido el turno de " + who);
-      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-          ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, A11y.MIN_TOUCH_DP));
-      params.leftMargin = Ui.dp(this, AppSpacing.SM);
-      row.addView(atender, params);
-    }
-    return row;
   }
 
   private void confirmEstado(TurnoDto turno, String estado) {
@@ -428,91 +332,17 @@ public class TurnosActivity extends AppActivity {
     createPanel.setVisibility(View.VISIBLE);
   }
 
-  private LinearLayout buildCreateForm() {
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setPadding(
-        Ui.dp(this, AppSpacing.MD),
-        Ui.dp(this, AppSpacing.MD),
-        Ui.dp(this, AppSpacing.MD),
-        0);
-
-    TextView title = new TextView(this);
-    title.setText("Nuevo turno");
-    AppTypography.headline2(title);
-    root.addView(title);
-
-    TextView help = new TextView(this);
-    help.setText("Buscá al paciente por DNI y elegí fecha y hora.");
-    AppTypography.caption(help);
-    LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    helpParams.topMargin = Ui.dp(this, AppSpacing.XS);
-    helpParams.bottomMargin = Ui.dp(this, AppSpacing.SM);
-    root.addView(help, helpParams);
-
-    pacientePicker = new PatientPicker(this, PatientPicker.Layout.STACKED,
-        "DNI del paciente", "Buscar paciente", AppButton.Style.OUTLINED, false, false);
-    pacientePicker.setListener(new PatientPicker.Listener() {
-      @Override
-      public void onSearch(String dni) {
-        buscarPaciente(dni);
-      }
-
-      @Override
-      public void onClear() {
-        // El formulario de Turnos no tiene accion de limpiar.
-      }
-    });
-    root.addView(pacientePicker);
-
-    pacienteField = new FormField(this, "Paciente", true);
-    root.addView(pacienteField);
-    updatePacienteLabel("Sin paciente seleccionado");
-
-    fechaField = new DateField(this, "Fecha", true, this, "Fecha del turno", "date_picker");
-    // Turnos cannot be booked in the past (the API rejects it with 422).
-    fechaField.setFutureOnly(true);
-    // Same window as the API: from today up to one year ahead.
-    fechaField.setMaxYearsAhead(1);
-    fechaField.setOnDateSelected((apiDate, displayDate) -> {
-      selectedFecha = apiDate;
-      checkHoraHoy();
-    });
-    root.addView(fechaField);
-
-    horaField = new TimeField(this, "Hora", true);
-    horaField.setOnTimeSelected(hora -> {
-      selectedHora = hora;
-      checkHoraHoy();
-    });
-    root.addView(horaField);
-
-    formError = new ErrorText(this);
-    root.addView(formError);
-
-    FormActions actions = new FormActions(this);
-    confirmarButton = actions.add("Confirmar turno", AppButton.Style.FILLED, v -> confirmar(), 48,
-        AppSpacing.MD);
-    actions.add("Volver a la lista", AppButton.Style.TEXT, v -> loadTurnos(), 48, 0);
-    root.addView(actions);
-
-    return root;
-  }
-
   private void buscarPaciente(String dni) {
     pendingDni = dni;
-    pacientePicker.setSearching(true);
+    createPanel.setSearching(true);
     pacienteRepository.findByDni(dni, new ApiCallback<PacienteDto>() {
       @Override
       public void onSuccess(PacienteDto data) {
         if (isStale(dni)) {
           return;
         }
-        pacientePicker.setSearching(false);
-        selectedPaciente = data;
-        updatePacienteLabel(data.displayName());
-        pacienteField.error().hide();
+        createPanel.setSearching(false);
+        createPanel.showPaciente(data);
       }
 
       @Override
@@ -520,10 +350,8 @@ public class TurnosActivity extends AppActivity {
         if (isStale(dni)) {
           return;
         }
-        pacientePicker.setSearching(false);
-        selectedPaciente = null;
-        updatePacienteLabel("Sin paciente seleccionado");
-        pacienteField.error().show(type == ApiError.Type.NOT_FOUND
+        createPanel.setSearching(false);
+        createPanel.showPacienteError(type == ApiError.Type.NOT_FOUND
             ? "No existe un paciente con ese DNI"
             // Never surface the raw backend text of a lookup (may be English).
             : ApiMessages.forType(type, null, "No se pudo buscar el paciente",
@@ -540,82 +368,27 @@ public class TurnosActivity extends AppActivity {
     return !dni.equals(pendingDni);
   }
 
-  private void updatePacienteLabel(String text) {
-    if (pacienteField == null) {
-      return;
-    }
-    pacienteField.value().setText(text);
-    pacienteField.value().setTextColor(
-        text.startsWith("Sin ") ? AppColors.TEXT_SECONDARY : AppColors.TEXT_PRIMARY);
-  }
-
   private void confirmar() {
     if (submitting) {
       return;
     }
-    clearErrors();
-
-    // Validación inline: cada error queda debajo de su campo, no en un Toast.
-    boolean valid = true;
-    if (selectedPaciente == null || selectedPaciente.id == null) {
-      pacienteField.error().show("Seleccioná un paciente");
-      valid = false;
-    }
-    if (selectedFecha == null) {
-      fechaField.error().show("Elegí la fecha del turno");
-      valid = false;
-    }
-    if (selectedHora == null) {
-      horaField.error().show("Elegí la hora del turno");
-      valid = false;
-    }
-    if (selectedFecha != null && selectedFecha.compareTo(TurnoSchedule.today()) < 0) {
-      fechaField.error().show("La fecha del turno no puede ser anterior a hoy");
-      valid = false;
-    } else if (selectedFecha != null && TurnoSchedule.isBeyondMax(selectedFecha, TurnoSchedule.today())) {
-      fechaField.error().show("La fecha del turno no puede ser posterior al "
-          + TurnoSchedule.display(TurnoSchedule.maxFecha(TurnoSchedule.today())));
-      valid = false;
-    } else if (!checkHoraHoy()) {
-      valid = false;
-    }
-    if (!valid) {
+    createPanel.clearErrors();
+    if (!createPanel.validate()) {
       return;
     }
     send(false, null);
   }
 
-  /**
-   * A time already past today stays blocked; the error suggests the next
-   * valid slot. Returns {@code true} when the picked time is acceptable.
-   */
-  private boolean checkHoraHoy() {
-    if (selectedFecha == null || selectedHora == null || !selectedFecha.equals(TurnoSchedule.today())) {
-      return true;
-    }
-    String now = horaActual();
-    if (selectedHora.compareTo(now) >= 0) {
-      horaField.error().hide();
-      return true;
-    }
-    String next = TurnoSchedule.nextSlot(now);
-    horaField.error().show(next != null
-        ? "Esa hora ya pasó. El próximo horario disponible hoy es " + next + "."
-        : "Ya no quedan horarios hoy. Elegí otra fecha.");
-    return false;
-  }
-
   /** Posts the turno; {@code forzar} resends after an accepted forcible 409. */
   private void send(boolean forzar, String motivo) {
-    if (submitting || selectedPaciente == null || selectedPaciente.id == null
-        || selectedFecha == null || selectedHora == null) {
+    if (submitting || !createPanel.isComplete()) {
       return;
     }
-    formError.hide();
+    createPanel.hideFormError();
     setSubmitting(true);
 
-    CreateTurnoRequest body = new CreateTurnoRequest(
-        selectedPaciente.id, selectedFecha, selectedHora, null);
+    CreateTurnoRequest body = new CreateTurnoRequest(createPanel.selectedPaciente().id,
+        createPanel.selectedFecha(), createPanel.selectedHora(), null);
     if (forzar) {
       body.forzar = Boolean.TRUE;
       body.motivo = motivo;
@@ -638,7 +411,7 @@ public class TurnosActivity extends AppActivity {
         if (!isAlive()) {
           return;
         }
-        applyFieldErrors(fieldErrors);
+        createPanel.applyFieldErrors(fieldErrors);
       }
 
       @Override
@@ -671,97 +444,32 @@ public class TurnosActivity extends AppActivity {
     });
   }
 
-  /**
-   * 409: forcible rules ask for an audited confirmation with motivo; hard
-   * limits (slot taken, daily capacity) only explain why it cannot be booked.
-   */
+  /** Renders the {@link TurnoWarningPresenter} decision for a 409. */
   private void handleWarning(TurnoWarningResponse warning) {
-    List<String> messages = warning.messages();
-    if (messages.isEmpty()) {
-      messages.add("El turno no cumple las reglas de donación.");
-    }
-    if (!ForceOverride.allForcible(warning.codes())) {
-      StringBuilder text = new StringBuilder();
-      for (String message : messages) {
-        text.append(text.length() > 0 ? "\n" : "").append(message);
+    TurnoWarningPresenter.Decision decision = TurnoWarningPresenter.decide(warning);
+    if (!decision.forcible) {
+      createPanel.showFormError(decision.text);
+      if (decision.horarioOcupado) {
+        createPanel.showHorarioOcupado();
       }
-      formError.show(text);
-      if (warning.codes().contains(ForceOverride.HORARIO_OCUPADO)) {
-        horaField.error().show("Ese horario ya está ocupado. Elegí otra hora.");
-      }
-      ConfirmDialog.show(this, "No se puede agendar", text + "\n\nEste límite no se "
+      ConfirmDialog.show(this, "No se puede agendar", decision.text + "\n\nEste límite no se "
           + "puede forzar: elegí otro horario o fecha.", null, "Entendido", null);
       return;
     }
-    ForceDialog.show(this, "¿Forzar el turno?", messages, "Forzar y agendar",
+    ForceDialog.show(this, "¿Forzar el turno?", decision.messages, "Forzar y agendar",
         motivo -> send(true, motivo));
-  }
-
-  /** Shows the backend's Spanish 422 message under each field. */
-  private void applyFieldErrors(Map<String, String> errors) {
-    boolean shown = false;
-    if (errors.containsKey("paciente_id")) {
-      pacienteField.error().show(errors.get("paciente_id"));
-      shown = true;
-    }
-    if (errors.containsKey("fecha")) {
-      fechaField.error().show(errors.get("fecha"));
-      shown = true;
-    }
-    if (errors.containsKey("hora")) {
-      horaField.error().show(errors.get("hora"));
-      shown = true;
-    }
-    if (errors.containsKey("motivo")) {
-      formError.show(errors.get("motivo"));
-      shown = true;
-    }
-    if (!shown) {
-      String first = errors.values().iterator().hasNext()
-          ? errors.values().iterator().next() : null;
-      formError.show(first != null && !first.isEmpty() ? first : "Revisá los datos del turno");
-    }
   }
 
   private void setSubmitting(boolean value) {
     submitting = value;
-    if (confirmarButton != null) {
-      confirmarButton.setEnabled(!value);
-      confirmarButton.setText(value ? "Guardando…" : "Confirmar turno");
+    if (createPanel != null) {
+      createPanel.setSubmitting(value);
     }
   }
 
   private void resetForm() {
-    selectedPaciente = null;
-    selectedFecha = null;
-    selectedHora = null;
     pendingDni = null;
-    if (pacientePicker != null) {
-      pacientePicker.setSearching(false);
-      pacientePicker.dniInput().getEditText().setText("");
-      pacientePicker.dniInput().setError(null);
-    }
-    updatePacienteLabel("Sin paciente seleccionado");
-    fechaField.resetValue();
-    horaField.resetValue();
-    clearErrors();
-  }
-
-  private void clearErrors() {
-    if (pacientePicker != null) {
-      pacientePicker.dniInput().setError(null);
-    }
-    pacienteField.error().hide();
-    fechaField.error().hide();
-    horaField.error().hide();
-    if (formError != null) {
-      formError.hide();
-    }
-  }
-
-  /** Current local time as {@code HH:mm}, comparable with the picked hour. */
-  private String horaActual() {
-    return new SimpleDateFormat("HH:mm", Locale.US).format(new Date());
+    createPanel.reset();
   }
 
   private String hoyLegible() {

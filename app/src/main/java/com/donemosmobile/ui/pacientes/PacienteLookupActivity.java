@@ -24,6 +24,7 @@ import com.donemosmobile.ui.components.AppButton;
 import com.donemosmobile.ui.components.AppCard;
 import com.donemosmobile.ui.components.AppInput;
 import com.donemosmobile.ui.components.ErrorText;
+import com.donemosmobile.ui.components.InputDialog;
 import com.donemosmobile.ui.components.ScreenHeader;
 import com.donemosmobile.ui.components.ScreenScaffold;
 import com.donemosmobile.ui.components.StateView;
@@ -235,17 +236,8 @@ public class PacienteLookupActivity extends AppActivity {
     ErrorText error = new ErrorText(this);
     form.addView(error);
 
-    AlertDialog dialog = new AlertDialog.Builder(this)
-        .setTitle("Editar ciclo de donaciones")
-        .setView(form)
-        .setNegativeButton("Cancelar", null)
-        .setPositiveButton("Guardar", null)
-        .create();
-
-    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-        .setOnClickListener(v -> saveCiclo(paciente, dialog,
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE), ciclo, serie, donacion, error)));
-    dialog.show();
+    InputDialog.show(this, "Editar ciclo de donaciones", null, form, "Guardar", "Cancelar",
+        (dialog, guardar) -> saveCiclo(paciente, dialog, guardar, ciclo, serie, donacion, error));
   }
 
   private AppInput cycleField(LinearLayout parent, String hint, Integer current) {

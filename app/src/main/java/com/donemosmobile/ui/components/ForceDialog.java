@@ -51,13 +51,7 @@ public final class ForceDialog {
     intro.setTextColor(AppColors.TEXT_SECONDARY);
     body.addView(intro);
 
-    for (String warning : warnings) {
-      TextView item = new TextView(context);
-      item.setText("• " + warning);
-      item.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-      item.setTextColor(AppColors.TEXT_PRIMARY);
-      body.addView(item, Ui.matchWrap(context, AppSpacing.XS));
-    }
+    BulletList.addTo(body, warnings);
 
     TextView note = new TextView(context);
     note.setText("La autorización queda auditada con tu usuario y este motivo.");
